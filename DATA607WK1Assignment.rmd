@@ -1,0 +1,169 @@
+---
+title: "DATA607WK1Assignment"
+author: "PK O'Flaherty"
+date: "2/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<!--This comment will not be displayed in the output
+
+Rubric notes:
+1) Each text block should minimally include one header and additional non-header text
+2) may include additional information, such as exploratory data analysis graphics
+3) put solution in .rmd file, publish to rpubs, post .rmd to github repository
+4) provide URLs to github repo and rpubs in the assignment link
+
+-->
+
+<hr />
+
+## Overview
+
+In Walt Hickey's 2014 article, _How Americans Like Their Steak_, he uses a survey of risk taking behavior along with how well done the respondent likes their steak to investigate the question, "Are risk-averse people more likely to order their steak well done?"
+
+   Hickey (2014) [How Americans Like Their Steak](https://fivethirtyeight.com/features/how-americans-like-their-steak/)
+
+He didn't see any relationship between respondents' preferred doneness and their risk aversiveness. One of the questions asked respondents if they would rather be in lottery A (riskier) or lottery B (less risky).  However we are excluding this column because even if someone is risk adverse they may pick the riskier lottery because its expected value is higher (50 instead of 18 for a 10 dollar cost).
+
+> “Consider the following hypothetical situations: In Lottery A, you have a 50 percent chance of success, with a payout of $100. In Lottery B, you have a 90 percent chance of success, with a payout of $20. Assuming you have $10 to bet, would you play Lottery A or Lottery B?”
+
+**Our task is to provide the R code to produce a data frame with a subset of the columns and practice clarifying column names and data labels.**
+
+<hr />
+
+## Code Chunk Summary
+
++ Setup
+    + read data
+    + load required packages
++ Subset
+    + exclude lottery
+    + remove first junk row
++ Clarify column names and data labels
+    + rename columns
+    + relabel education
+    + relabel location
++ Exploratory data analysis graphics
+
+<hr />
+
+#### Setup
+
+Here we read the data and load required packages
+
+```{r read-data}
+
+#take the data that's stored in my github repository
+halts <- read.csv("https://raw.githubusercontent.com/pkofy/DATA607/main/steak-risk-survey.csv", stringsAsFactors = FALSE)
+
+```
+
+```{r load-required-packages}
+
+#Load dplyr package
+#install.packages("dplyr",repos = "http://cran.us.r-project.org")
+#suppressPackageStartupMessages(require(tidyr))
+suppressPackageStartupMessages(require(dplyr))
+suppressPackageStartupMessages(require(ggplot2))
+
+```
+
+<hr />
+
+#### Subset
+
+Here we exclude the lottery column and the junk first row of data
+
+```{r exclude-lottery}
+
+#glimpse(halts)
+#colnames(halts
+halts = select(halts, c(1, 3:15))
+
+```
+
+```{r remove-first-junk-row}
+
+halts = halts %>%
+  filter(!row_number() %in% c(1))
+
+```
+
+<hr />
+
+#### Clarify column names and data labels
+
+Here we simply all of the column names and simplify the data labels for two columns: Education and Location.
+
+```{r rename-columns}
+
+halts = rename(halts, ID = RespondentID)
+halts = rename(halts, Smoke = Do.you.ever.smoke.cigarettes.)
+halts = rename(halts, Drink = Do.you.ever.drink.alcohol.)
+halts = rename(halts, Gamble = Do.you.ever.gamble.)
+halts = rename(halts, Skydive = Have.you.ever.been.skydiving.)
+halts = rename(halts, Speed = Do.you.ever.drive.above.the.speed.limit.)
+halts = rename(halts, Cheat = Have.you.ever.cheated.on.your.significant.other.)
+halts = rename(halts, EatSteak = Do.you.eat.steak.)
+halts = rename(halts, Doneness = How.do.you.like.your.steak.prepared.)
+halts = rename(halts, Income = Household.Income)
+halts = rename(halts, Location = Location..Census.Region.)
+
+```
+
+```{r relabel-education}
+
+halts$Education <- replace(halts$Education, halts$Education == "Bachelor degree", "Bachelors")
+halts$Education <- replace(halts$Education, halts$Education == "Graduate degree", "Graduate")
+halts$Education <- replace(halts$Education, halts$Education == "High school degree", "HighSchool")
+halts$Education <- replace(halts$Education, halts$Education == "Less than high school degree", "NoDiploma")
+halts$Education <- replace(halts$Education, halts$Education == "Some college or Associate degree", "SomeCollege")
+
+```
+
+```{r relabel-location}
+
+halts$Location <- replace(halts$Location, halts$Location == "East North Central", "NECentral")
+halts$Location <- replace(halts$Location, halts$Location == "East South Central", "SECentral")
+halts$Location <- replace(halts$Location, halts$Location == "West North Central", "NWCentral")
+halts$Location <- replace(halts$Location, halts$Location == "West South Central", "SWCentral")
+halts$Location <- replace(halts$Location, halts$Location == "New England", "NewEngland")
+halts$Location <- replace(halts$Location, halts$Location == "Middle Atlantic", "MidAtlantic")
+halts$Location <- replace(halts$Location, halts$Location == "South Atlantic", "SouthAtlantic")
+
+```
+
+<hr />
+
+#### Exploratory data analysis graphics
+
+Here we plot the responses to "Have you ever cheated on your significant other?" by Age
+
+```{r}
+
+halts2 = select(halts, c("Cheat", "Age"))
+halts3 = filter(halts2, halts2$Cheat == "Yes" | halts2$Cheat == "No")
+ggplot(data = halts3, aes(x=Age)) +
+  geom_bar() +
+  geom_text(stat='count', aes(label=..count..), vjust=-1) +
+  facet_wrap(~ Cheat, nrow = 1)
+#ggplot(data = halts3, mapping = aes(x = Age, y = Age)) + 
+#         geom_point() +
+#         facet_wrap(~ Cheat, nrow = 1)
+
+```
+
+<hr />
+
+## Conclusions
+
+I'm curious if having a lighthearted purpose of the survey, where the focus is on risk-taking and how you like your steak prepared, might make respondents more honest in their answers, than if the survey were stated to be about cheating.  In this survey respondents may be thinking about the implications of how they like their steak cooked and not about the implications of whether or not they have ever cheated on their significant other.
+
+Maybe we could conduct an experiment where we have a similar survey and a second survey with just the cheating question and see if significantly fewer people identify as ever having cheated on the second survey.
+
+<hr />
+
