@@ -1,0 +1,238 @@
+---
+title: "DATA607WK2Assignment"
+author: "PK O'Flaherty"
+date: "2/11/2022"
+output:
+  html_document:
+    highlight: pygments
+    theme: spacelab
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!--This comment will not be displayed in the output
+
+Rubric notes:
+1) Each text block should minimally include one header and additional non-header text
+2) may include additional information, such as exploratory data analysis graphics
+3) put solution in .rmd file, publish to rpubs, post .rmd to github repository
+4) provide URLs to github repo and rpubs in the assignment link
+
+-->
+
+<br>
+<hr>
+
+## Overview
+
+<br>
+
+**Below is the assignment description.  I extended the assignment by applying a likert graph, and will discuss avenues for improvement.**
+
+> Choose six recent popular movies. Ask at least five people that you know (friends, family, classmates, imaginary friends if necessary) to rate each of these movies that they have seen on a scale of 1 to 5. Take the results (observations) and store them in a SQL database of your choosing. Load the information from the SQL database into an R dataframe.
+
+<br>
+<hr>
+
+## Data Discussion
+
+<br>
+
+To obtain the data I made a list of movies me and my partner have recently seen, assigned our numbers one through five, obtained numbers from Google's combined rating for the movies, asked a friend who had to look up multiple trailers to guess what they thought their ratings would be, and made up the last and fifth set based on what we think a movie snob would pick.
+
+The .csv and .sql files referenced below and the source .rmd file for this document are saved here, [github.com/pkofy/DATA607](https://github.com/pkofy/DATA607), each with the name "DATA607WK2Assignment".
+
+<br>
+<hr>
+
+## SQL Setup
+
+<br>
+
+**Here we display the SQL code that was used on www.sqliteonline.com to generate the csv file.  It was my intention to be able to execute the SQL code within RMarkdown.**
+
+Evaluation for these code chunks are set to false so we can see the code displayed but they are not run when knit.  I wanted to run my SQL code entirely within SQL code chunks in RMarkdown, however I couldn't read the dataframe output variable, "mr".  On sqliteonline I was able to run a second SQL script with a SELECT command to read the table which I exported to a csv file.
+
+Section Code Summary  
+
++ Open SQL
++ Create table and populate with inserts
++ Run Select to output table to a dataframe "mr" usable within R
++ Disconnect SQL
+
+```{r setup-SQL, message=FALSE, eval=FALSE}
+#This establishes the connection needed in order to run SQL in RMarkdown
+library(DBI)
+db = dbConnect(RSQLite::SQLite(), dbname = "sql.sqlite")
+```
+
+```{sql sql-create-insert-table, eval=FALSE}
+--Include ", connection=db" in chunk header if evaluating
+--Comments in sql are made with two dashes
+--Here we create the table
+CREATE TABLE movieratings (
+    id int IDENTITY PRIMARY KEY,
+    "Free Guy" INT,
+    "Shang-Chi" INT,
+    "Chaos Walking" INT,
+    "Cruella" INT,
+    "Nomadland" INT,
+    "Parasite" INT
+);
+
+--Here we populate the records in the table
+INSERT INTO movieratings VALUES (3, 4, 4, 4, 3, 5);
+INSERT INTO movieratings VALUES (5, 5, 5, 3, 3, 2);
+INSERT INTO movieratings VALUES (4, 5, 2, 4, 5, 5);
+INSERT INTO movieratings VALUES (2, 3, 4, 2, 1, 4);
+INSERT INTO movieratings VALUES (5, 5, 4, 5, 4, 5);
+```
+
+```{sql sql-select, eval=FALSE, output.var="mr"}
+--Include ", connection=db" in chunk header if evaluating
+--Here we select the whole table to be output as a dataframe "mr" --using "output.var=" in the chunk header
+SELECT * FROM movieratings
+```
+
+```{r disconnect-SQL, eval=FALSE}
+#Here we disconnect from any SQL connections that are opened out of courtesy.
+dbDisconnect()
+```
+
+<br>
+<hr>
+
+## R Setup
+
+<br>
+
+**Here we load libraries and data.**
+
+The first chunk of package installations are commented out but preserved in case you need to install them yourself.
+
+Section Code Summary  
+
++ Install new packages
++ Load libraries
++ Read data
+
+```{r install-packages, eval=FALSE}
+#install.packages("likert",repos = "http://cran.us.r-project.org")
+#install.packages("reshape",repos = "http://cran.us.r-project.org")
+```
+
+```{r load-libraries, message=FALSE}
+#I don't believe we need the reshape library
+library(tidyverse)
+library(likert)
+library(reshape)
+```
+
+```{r read-data}
+#Here we read the csv from my github
+mr <- read.csv("https://raw.githubusercontent.com/pkofy/DATA607/main/DATA607WK2Assignment.csv", stringsAsFactors = TRUE)
+```
+
+<br>
+<hr>
+
+## View as Likert Data
+
+<br>
+
+**Here we transform the csv file so that it can be represented as likert data.**
+
+Section Code Summary  
+
++ Remove 'id' column
++ Turn data into 5-level factors
++ Check the data are factors with the same number of levels
++ Convert the dataframe into likert data
++ Example Likert Outputs
+
+```{r data-trim}
+#Remove 'id' column
+tmr <- select(mr, c(2,3,4,5,6,7))
+```
+
+```{r data-prep}
+#Turn the data into factors with the same five levels
+#This could be reduced using a for loop
+mylevels <- c('1', '2', '3', '4', '5')
+tmr$Free.Guy <- factor(tmr$Free.Guy, levels=mylevels)
+tmr$Shang.Chi <- factor(tmr$Shang.Chi, levels=mylevels)
+tmr$Chaos.Walking <- factor(tmr$Chaos.Walking, levels=mylevels)
+tmr$Cruella <- factor(tmr$Cruella, levels=mylevels)
+tmr$Nomadland <- factor(tmr$Nomadland, levels=mylevels)
+tmr$Parasite <- factor(tmr$Parasite, levels=mylevels)
+```
+
+```{r data-check}
+#Check that the data are factors with the same levels
+str(tmr)
+```
+
+```{r likertize-data}
+#Convert the dataframe into likert data
+ltmr <- likert(tmr)
+```
+
+```{r graph-data}
+#Graph the review data (positive.order=TRUE does not work in this case, may have to sort by statistics next time)
+plot(ltmr, type='density', positive.order=TRUE)
+#Other likert outputs I could have chosen from are:
+#plot(ltmr, type='heat')
+#plot(ltmr)
+#summary(ltmr)
+```
+
+<br>
+<hr>
+
+## Conclusions
+
+<br>
+
+### Which movie to go see
+
+Go see Shang Chi if you haven't already.  It had the highest average rating.
+
+Parasite, Nomadland and Chaos Walking divided audiences which you can see from the bimodal distribution of the reviews.  Watch to pick your side of the controversy!
+
+Cruella and Free Guy seem like good movie fodder with flat but positive distributions.
+
+Movies are all ranked relatively high but I believe that is because the movie industry is competitive and good movies are more likely to be recommended (by people and engines) or available on airplanes.
+
+### A word on ratings
+
+I take language classes on Lingoda where you have to rate the teachers 1-5 every time you take a class with them.  It pains me because I would like to use 5 for amazing classes, 4 for good classes, 3 for ok classes and 1 and 2 for abysmal and bad classes but I want to be nice and I give everyone a 5.  Maybe to make this more objectively subjective I could have provided the following ranking system for people to apply their ratings:  
+
+5 - "One of the best movies I've ever seen"  
+4 - "I loved it"  
+3 - "Good movie"  
+2 - "Ahh... It was ok"  
+1 - "Uhg... Terrible"  
+
+<br>
+<hr>
+
+## Future Efforts
+
+<br>
+
+### Data Gathering
+
+Next time I would try to scrape reviews from internet, or build a survey that I could text to family and friends.
+
+### Database Architecture
+
+Next time I would make multiple databases that work together.  All movies, All people surveyed, and a third table that combined the first two with the reviews.
+
+### Missing data
+
+Next time I would add a mechanism to handle missing data.  Likely I would set missing values to zero and exclude zero values from the likert data
+
+
