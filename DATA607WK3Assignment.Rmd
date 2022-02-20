@@ -1,0 +1,306 @@
+---
+title: "DATA607WK3Assignment"
+author: "PK O'Flaherty"
+date: "2/19/2022"
+output:
+  html_document:
+    highlight: pygments
+    theme: spacelab
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!--This comment will not be displayed in the output
+
+Rubric notes:
+1) Each text block should minimally include one header and additional non-header text
+2) may include additional information, such as exploratory data analysis graphics
+3) Please deliver links to your R Markdown file (in GitHub and rpubs.com)
+
+library(htmlwidgets) # I had to load this to use `str_view()`
+
+-->
+
+<br>
+
+* * *
+
+<img src="https://cdn.diys.com/wp-content/uploads/2020/08/Salal-Berries.jpg" alt="Picture of Salal Berries" style="max-height: 600px; max-width: 600px;">
+
+#### Picture of the salal berries mentioned in Exercise 2, from [www.diys.com/salal-plant/salal-berries](https://www.diys.com/salal-plant/salal-berries/)
+
+<br>
+
+* * *
+
+## Exercise 1
+
+*Using the 173 majors listed in fivethirtyeight.com’s College Majors dataset [https://fivethirtyeight.com/features/the-economic-guide-to-picking-a-college-major/], provide code that identifies the majors that contain either "DATA" or "STATISTICS"*
+
+**There are three majors that contain either "DATA" or "STATISTICS"**
+
+```{r load-packages, message=FALSE}
+# Load packages --------------------------------------
+library(tidyverse)
+```
+
+```{r read-data}
+# Load data --------------------------------------
+majordom <- read.csv("https://raw.githubusercontent.com/fivethirtyeight/data/master/college-majors/majors-list.csv", stringsAsFactors = FALSE)
+```
+
+```{r identify-majors}
+majordom_data <- str_subset(majordom$Major, pattern = "DATA|STATISTICS")
+majordom_data
+```
+
+<br>
+
+* * *
+
+## Exercise 2
+
+*Write code that transforms the data below:*
+
+>[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"  
+>[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  
+>[9] "elderberry"   "lime"         "lychee"       "mulberry"    
+>[13] "olive"        "salal berry"
+
+*Into a format like this:*
+
+>c("bell pepper", "bilberry", "blackberry", "blood orange", "blueberry", "cantaloupe", "chili pepper", "cloudberry", "elderberry", "lime", "lychee", "mulberry", "olive", "salal berry")
+
+### Generate a string that looks like the output
+
+**We can generate a string that looks like that with the following steps:**
+
+```{r}
+# Generate input
+line1 <- '[1] "bell pepper"  "bilberry"     "blackberry"   "blood orange"'
+line2 <- '[5] "blueberry"    "cantaloupe"   "chili pepper" "cloudberry"  '
+line3 <- '[9] "elderberry"   "lime"         "lychee"       "mulberry"    '
+line4 <- '[13] "olive"        "salal berry"'
+input <- c(line1, line2, line3, line4)
+writeLines(input)
+```
+
+```{r}
+# Combine the lines into one vector element
+input <- str_c(input, collapse = " ")
+writeLines(input)
+```
+
+```{r}
+# Remove the numbers in square brackets
+interim <- str_remove_all(input, "\\[(.|..)\\]")
+writeLines(interim)
+```
+
+```{r}
+# Trim the white space
+interim <- str_squish(interim)
+writeLines(interim)
+```
+
+```{r}
+# Replace " " with ", "
+interim <- str_replace_all(interim, "\" \"", "\", \"")
+writeLines(interim)
+```
+
+```{r}
+# Wrap the vectorized element with `c()`
+output <- str_c("c(", interim, ")")
+writeLines(output)
+```
+
+**However, this only looks like the output above but isn't a vector with these elements.  If it needs to be a vector we can extract just the fruit names from the original input collapsed into one vector element. WriteLines() doesn't return an output that can be assigned to a variable, otherwise we would have shown that, too.**
+
+### Generate a vector that produces the same output
+
+```{r}
+# Extract names into a list 
+output2 <- str_extract_all(input, "\"[a-z ]+\"")
+# [a-z ]+ is not picking up " " because the beginning " is picked up already
+output2
+```
+
+```{r}
+# Turn the list into a vector
+output2 <- unlist(output2)
+output2
+```
+
+```{r}
+# Remove explicit double quotes
+output2 <- str_remove_all(output2, "\"")
+output2
+```
+
+**This matches the output of: c("bell pepper", "bilberry", "blackberry", "blood orange", "blueberry", "cantaloupe", "chili pepper", "cloudberry", "elderberry", "lime", "lychee", "mulberry", "olive", "salal berry")**
+
+```{r}
+# Show output of "c("bell pepper", ..."salal berry")
+c("bell pepper", "bilberry", "blackberry", "blood orange", "blueberry", "cantaloupe", "chili pepper", "cloudberry", "elderberry", "lime", "lychee", "mulberry", "olive", "salal berry")
+```
+
+<br>
+
+* * *
+
+## Exercise 3
+
+### Escaped non special characters
+
+*On #3, please don't assume that it's a typo when there is only a single forward slash.  That is, what happens when the second forward slash that R requires is forgotten?*
+
+**Just above 14.3.1.1 in _R for Data Science_, Wickham & Grolemund write, "In this book, I’ll write regular expression as `\.` and strings that represent the regular expression as `"\\."`."  So I assume in the two examples without quotes he's demonstrating the difference between regex and the strings that represent regex.**
+
+**Nevertheless if you do escape a normal character it doesn't just disappear. Otherwise the second and third code chunks below would have equivalent output. Instead we see that `"\1"` becomes an invisible character. You can see in the examples below that while `"A\1\1"` is matched by both `"(.)"` and `"(.)\1\1"`, `"AAA", "BBB", "B11"` don't match with `"(.)\1\1"` because they don't have those two escaped normal characters.**
+
+```{r}
+# Writing the string "(.)\1\1" returns "(.)" but they are not equivalent in the examples below
+writeLines("(.)\1\1")
+```
+
+```{r}
+# Running string_view using "(.)\1\1" matches the first instance of any character followed by
+# two escaped 1s.
+sample_string <- c("AAA", "BBB", "B11", "A\1\1")
+str_view(sample_string, "(.)\1\1")
+```
+
+```{r}
+# Running string_view using "(.)" matches the first instance of any character
+sample_string <- c("AAA", "BBB", "B11", "A\1\1")
+str_view(sample_string, "(.)")
+```
+
+### Exercise 3A
+
+*Describe, in words, what these expressions will match:*
+
+`(.)\1\1`
+
+**This will match any character (except `\n`) repeated three times consecutively.**
+
+```{r}
+sample_string <- c("AAA", "BBB", "BCCC", "ABBCB")
+str_view(sample_string, "(.)\\1\\1")
+```
+
+### Exercise 3B
+
+`"(.)(.)\\2\\1"`
+
+**This will match any two characters, repeated in reverse.**
+
+```{r}
+sample_string <- c("ANNA", "BABA", "UOMMO", "ABBACADABBADOO")
+str_view_all(sample_string, "(.)(.)\\2\\1")
+```
+
+### Exercise 3C
+
+`(..)\1`
+
+**This will match any two characters, repeated.**
+
+```{r}
+sample_string <- c("MAMA", "PAPA", "GAGAGA", "HAHAHAHA")
+str_view_all(sample_string, "(..)\\1")
+```
+
+### Exercise 3D
+
+`"(.).\\1.\\1"`
+
+**This will match five characters that have the same first, third and fifth character.**
+
+```{r}
+sample_string <- c("DADDY", "DADADY", "NANNA", "NANXN")
+str_view(sample_string, "(.).\\1.\\1")
+```
+
+### Exercise 3E
+
+`"(.)(.)(.).*\\3\\2\\1"`
+
+**This will match any three characters, repeated in reverse, with no or any number of characters in between.**
+
+```{r}
+sample_string <- c("ABCCB", "ABCCBA", "ABCXCBA", "ABCXYCBA", "ABCX CBAY")
+str_view(sample_string, "(.)(.)(.).*\\3\\2\\1")
+```
+
+<br>
+
+* * *
+
+## Exercise 4
+
+### Exercise 4A
+
+*Construct regular expressions to match words that:*
+
+*Start and end with the same character.*
+
+**`"^(.).*\\1$"`**
+
+**See below, only the vector elements that start and end with the same character are viewed.**
+
+```{r}
+sample_string <- c("ABCCB", "ABCXCBA", "ZBCXYCBZ", "ZBCXYZCBA")
+str_view(sample_string, "^(.).*\\1$")
+```
+
+### Exercise 4B
+
+*Contain a repeated pair of letters (e.g. "church" contains "ch" repeated twice.)*
+
+**`"(..).*\\1"`**
+
+**See below for the regex in practice.  I tried adding {2} or ? but it didn't end the `churchitch` match after the second `ch`.**
+
+```{r}
+sample_string <- c("ABCCAB", "church", "ladeeadi", "ZBCXYXYZA", "churchitch")
+str_view(sample_string, "(..).*\\1")
+```
+
+### Exercise 4C
+
+*Contain one letter repeated in at least three places (e.g. "eleven" contains three "e"s.)*
+
+**`"(.).*\\1.*\\1"`**
+
+**See below**
+
+```{r}
+sample_string <- c("ABCCAB", "eleven", "DADDY", "ladeeadi", "ZBCXYAYAAY")
+str_view(sample_string, "(.).*\\1.*\\1")
+```
+
+<br>
+
+* * *
+
+## Source Files
+
+The R Markdown file for this document is saved here, [github.com/pkofy/DATA607](https://github.com/pkofy/DATA607), with the name "DATA607WK3Assignment.rmd".
+
+<br>
+
+* * *
+
+<!--
+Sententiae Antiquae
+Новый язык - это новая жизнь.
+A new language is a new life.
+-->
+
+
+
