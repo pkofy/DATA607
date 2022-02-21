@@ -1,0 +1,235 @@
+---
+title: "DATA607Project1"
+author: "PK O'Flaherty"
+date: "2/20/2022"
+output:
+  html_document:
+    highlight: pygments
+    theme: spacelab
+    toc: true
+    toc_float: true
+    df_print: paged
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!--
+Rubric notes:
+1) Each text block should minimally include one header and additional non-header text
+2) may include additional information, such as exploratory data analysis graphics
+3) Please deliver links to your R Markdown file (in GitHub and rpubs.com)
+-->
+
+<br>
+
+* * *
+
+<img src="https://media.npr.org/assets/img/2016/10/24/gettyimages-492378344-2a5d8b2206e74c67d7b1b94c3576ace7cd32bb65-s800-c85.webp" alt="Magnes Carlsen playing chess" style="max-height: 600px; max-width: 600px;">
+
+#### Magnes Carlsen playing chess, from [www.npr.org/alltechconsidered](https://www.npr.org/sections/alltechconsidered/2016/10/24/499162905/20-years-later-humans-still-no-match-for-computers-on-the-chessboard)
+
+<br>
+
+* * *
+
+## Overview
+
+**Below is the assignment description.**
+
+> In this project, you’re given a text file with chess tournament results where the information has some structure. Your job is to create an R Markdown file that generates a .CSV file (that could for example be imported into a SQL database) with the following information for all of the players:  
+* Player’s Name  
+* Player’s State  
+* Total Number of Points  
+* Player’s Pre-Rating, and  
+* Average Pre Chess Rating of Opponents
+
+<br>
+
+* * *
+
+## Data Discussion
+
+**The chess tournament data was provided as a text file which has been saved to my github account.**
+
+I can extract the player number, name, state, points won, and pre-tournament ELO score by turning the text file into a table.  We can use this to calculate the average pre-tournament elo score of the opponents.
+
+<br>
+
+* * *
+
+## Setup
+
+**We are operating in the tidyverse.**
+
+```{r load-packages, message=FALSE}
+# Load packages --------------------------------------
+library(tidyverse)
+```
+
+<br>
+
+* * *
+
+## Import & Tidy Data
+
+**Here we extract the relevant data from the text file into a dataframe.**
+
+Section Code Summary  
+
++ Read data
++ Extract rows into tables
++ Create dataframe and rename columns
++ Tidy ELO ratings
++ Display dataframe
+
+```{r read-data}
+# Load data --------------------------------------
+txt_data <- readLines("https://raw.githubusercontent.com/pkofy/DATA607/main/DATA607Project1.txt")
+```
+
+```{r extract-data}
+# Extract rows into the two types, ignoring headers, and put them into tables
+row1 <- txt_data[seq(5, length(txt_data), 3)]
+row2 <- txt_data[seq(6, length(txt_data), 3)]
+t1 <- read.table(text = row1, sep = "|")
+t2 <- read.table(text = row2, sep = "|")
+```
+
+```{r create-dataframe}
+# Create dataframe and rename columns
+ctdf <- data.frame(t1$V1, t1$V2, t2$V1, t1$V3, t2$V2, t1$V4, t1$V5, t1$V6, t1$V7, t1$V8, t1$V9, t1$V10)
+ctdf <- ctdf %>% rename(number = t1.V1, name = t1.V2, state = t2.V1, pointswon = t1.V3, elo = t2.V2, g1 = t1.V4, g2 = t1.V5, g3 = t1.V6, g4 = t1.V7, g5 = t1.V8, g6 = t1.V9, g7 = t1.V10)
+```
+
+```{r tidy-elo}
+# Extract elo begin rating
+ctdf$elo_begin <- str_extract(ctdf$elo, "(R: ....)")
+ctdf$elo_begin <- str_extract(ctdf$elo_begin, "....$")
+
+# Extract elo end rating
+ctdf$elo_end <- str_extract(ctdf$elo, "(->....)")
+ctdf$elo_end <- str_extract(ctdf$elo_end, "....$")
+
+# Rearrange and Remove elo initial column
+ctdf <- ctdf %>% relocate(elo_end, .after = pointswon)
+ctdf <- ctdf %>% relocate(elo_begin, .after = pointswon)
+ctdf <- subset(ctdf, select = -elo)
+```
+
+```{r display-dataframe}
+# Display initial dataframe
+head(ctdf, n=5)
+```
+
+## Calculate average elo
+
+**Here we calculate the average elo score of the opponents by looking up each opponents elo score at the beginning of the tournament and then taking the average of them.**
+
+Section Code Summary  
+
++ Create columns with the opponent numbers for each game
++ Replace opponent numbers with their beginning elo scores
++ Take the row average of these
++ Display required columns
+
+```{r lookup-opponent-numbers}
+# Create new columns with the opponent numbers
+ctdf$o1 <- str_extract(ctdf$g1, "..$")
+ctdf$o2 <- str_extract(ctdf$g2, "..$")
+ctdf$o3 <- str_extract(ctdf$g3, "..$")
+ctdf$o4 <- str_extract(ctdf$g4, "..$")
+ctdf$o5 <- str_extract(ctdf$g5, "..$")
+ctdf$o6 <- str_extract(ctdf$g6, "..$")
+ctdf$o7 <- str_extract(ctdf$g7, "..$")
+
+# Convert the new columns of player numbers from strings to integers
+ctdf$o1 <- strtoi(ctdf$o1)
+ctdf$o2 <- strtoi(ctdf$o2)
+ctdf$o3 <- strtoi(ctdf$o3)
+ctdf$o4 <- strtoi(ctdf$o4)
+ctdf$o5 <- strtoi(ctdf$o5)
+ctdf$o6 <- strtoi(ctdf$o6)
+ctdf$o7 <- strtoi(ctdf$o7)
+```
+
+```{r lookup-opponent-elo-begin}
+# Replace the player numbers with the player elo_begin scores
+ctdf$o1 <- ctdf$elo_begin[ctdf$o1]
+ctdf$o2 <- ctdf$elo_begin[ctdf$o2]
+ctdf$o3 <- ctdf$elo_begin[ctdf$o3]
+ctdf$o4 <- ctdf$elo_begin[ctdf$o4]
+ctdf$o5 <- ctdf$elo_begin[ctdf$o5]
+ctdf$o6 <- ctdf$elo_begin[ctdf$o6]
+ctdf$o7 <- ctdf$elo_begin[ctdf$o7]
+
+# Convert the player elo_begin scores from strings to integers
+ctdf$o1 <- strtoi(ctdf$o1)
+ctdf$o2 <- strtoi(ctdf$o2)
+ctdf$o3 <- strtoi(ctdf$o3)
+ctdf$o4 <- strtoi(ctdf$o4)
+ctdf$o5 <- strtoi(ctdf$o5)
+ctdf$o6 <- strtoi(ctdf$o6)
+ctdf$o7 <- strtoi(ctdf$o7)
+```
+
+```{r take-rowmean}
+# Take the row average of these and assign it to a new column
+ctdf$begavgofopp <- rowMeans(ctdf[ , c(14:20)], na.rm=TRUE)
+```
+
+```{r display-subset}
+# Display the required subset of requested data
+ctdf_final <- ctdf[ , c(2,3,4,5,21)]
+ctdf_final
+```
+
+<br>
+
+* * *
+
+## Write to CSV file
+
+**Here we write the final dataframe to a .csv to be saved to the github folder.**
+
+```{r write-csv}
+# Writes to csv file
+write.csv(ctdf_final, file = "DATA607Project1.csv")
+```
+
+<br>
+
+* * *
+
+## Future Efforts
+
+### Piping
+
+I think I can standardize my code better by doing more piping.
+
+### Full Range Coding
+
+I probably could have been more sophisticated in my approach. I built up the approach piece by piece so I think I just need to do more projects to become fluent with these techniques.
+
+I was happy with my vectorized approach to looking up the beginning ELO ratings however I could have done a better job of reducing white space and representing numerical values as numbers instead of characters in the initial dataframe setup.
+
+<br>
+
+* * *
+
+## Reference and Source Files
+
+The referenced text and csv files and the R Markdown file for this document are saved here, [github.com/pkofy/DATA607](https://github.com/pkofy/DATA607), with the name "DATA607Project1".
+
+<br>
+
+* * *
+
+<!--
+Sententiae Antiquae
+Хорошо узнаешь людей, играя в шахматы и путешествуя.
+One gets to know people well when playing at chess and on journeys.
+-->
+
+
+
