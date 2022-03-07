@@ -1,0 +1,291 @@
+---
+title: "DATA607WK5Assignment"
+author: "PK O'Flaherty"
+date: "3/6/2022"
+output:
+  html_document:
+    highlight: pygments
+    theme: spacelab
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!--
+
+Rubric notes:
+1) Each text block should minimally include one header and additional non-header text
+2) Please deliver links to your R Markdown file (in GitHub and rpubs.com)
+
+-->
+
+<br>
+
+* * *
+
+<img src="https://static.timesofisrael.com/blogs/uploads/2020/06/pictures-of-Israel.jpg" alt="Picture of Israel at twilight with a mixture of old and new architecture" style="max-height: 600px; max-width: 600px;">
+
+#### Israel by Landscape Photographer, Noam Chen, from [blogs.timesofisrael.com](https://blogs.timesofisrael.com/40-breathtaking-new-pictures-of-israel-thatll-make-you-excited-to-see-tomorrow/)
+
+<br>
+
+* * *
+
+## Overview
+
+**We are addressing the following questions using a chart of August 2021 data for Israeli COVID hospitalization rates for people, 50 and under, and over 50, for both un-vaccinated and fully vaccinated populations:**
+
+> 
++ Do you have enough information to calculate the total population? What does this total population represent?  
++ Calculate the Efficacy vs. Disease; Explain your results.  
++ From your calculation of efficacy vs. disease, are you able to compare the rate of severe cases in unvaccinated individuals to that in vaccinated individuals?  
+
+<br>
+
+* * *
+
+### R Setup
+
+**We are coding in the tidyverse.**
+
+```{r load-packages, message=FALSE}
+# Load packages --------------------------------------
+library(tidyverse)
+```
+
+<br>
+
+* * *
+
+## Data
+
+**The data is a chart of August 2021 data for Israel COVID figures.**
+
+The original chart is located as an [xlsx file from Andy Catlin's github account](https://github.com/acatlin/data/blob/master/israeli_vaccination_data_analysis_start.xlsx).
+
+The chart contains four groups:  
+
++ Those 50 or younger and not fully vaccinated  
++ Those 50 or younger and fully vaccinated  
++ Those 51 or older and not fully vaccinated  
++ Those 51 or older and fully vaccinated  
+
+The chart also contains for the four groups:  
+
++ Population counts  
++ Population percents  
++ Severe case counts (hospitalizations)  
+
+Additionally the chart defines "Efficacy vs. severe disease" as follows but omits the numbers:
+
+> Efficacy vs. severe disease = 1 - (% fully vaxed severe cases per 100K / % not vaxed severe cases per 100K)  
+
+<br>
+
+* * *
+
+### Data Import
+
+**Here we read the data from a csv file uploaded to my github account.**
+
+```{r read-data}
+# Load data --------------------------------------
+df <- read.csv("https://raw.githubusercontent.com/pkofy/DATA607/main/DATA607WK5Assignment.csv", stringsAsFactors = FALSE)
+```
+
+<br>
+
+* * *
+
+### Data Cleanup Work
+
+**Originally I made the data frame below to get started on this project.**
+
+I then recorded the data from the original chart as a csv file and uploaded it to my github account to read into the project.
+
+I could extend the project by instead saving the original chart as a csv file to be read, and then using tidyr or dplyr convert it into the format of my current csv file or the dataframe described below.
+
+```{r}
+# Place holder to get bare bones for the assignment
+Age <- c("<=50", "<=50", ">50", ">50")
+VaxStat <- c("NotVax", "FullVax", "NotVax", "FullVax")
+PopCount <- c(1116834, 3501118, 186078, 2133516)
+PopPct <- c(0.233, 0.730, 0.079, 0.904)
+SevereCases <- c(43, 11, 171, 290)
+
+df_orig <- data.frame(Age, VaxStat, PopCount, PopPct, SevereCases)
+
+print (df_orig)
+```
+
+<br>
+
+* * *
+
+## Relevant Domain Knowledge
+
+**For this analysis I looked up additional information presented here:**
+
+<br>
+
+* * *
+
+### Population of Israel
+
+**I compare the total population of Israel to the implied total population from the chart.**
+
+I'm estimating the total population of Israel in August 2021 to be 8,875,000 by interpolating the chart located here: [worldpopulationreview.com](https://worldpopulationreview.com/countries/israel-population).
+
+```{r}
+# Create variable for estimated total population of Israel from worldpopulationreview.com
+estTotalPop <- 8875000
+```
+
+If we sum population counts from the chart we get 6,937,546, a number 1,937,000 less than the estimate from worldpopulationreview.com.
+
+```{r}
+# Sum of population counts
+df %>% summarise(sum = sum(PopCount))
+```
+
+If we sum population counts from the chart but factor in the population percents attributed to those counts (which total less than 100% each), then we get a higher number of 7,155,090, which is still 1,719,910 less than the estimate from worldpopulationreview.com.
+
+```{r}
+# Create tibble with sum of population counts and percents by age
+dfPop <- df %>% 
+  group_by(Age) %>%
+  summarise(sum = sum(PopCount), pct = sum(PopPct))
+
+# Calculate implied true total population
+dfPop <- mutate(dfPop, trueSum = sum / pct)
+
+# Sum of implied true total population counts
+dfPop %>% summarise(trueSum = sum(trueSum))
+```
+
+My guess is that the total population count in the table represents the people who are eligible to be vaccinated in Israel and don't have an exemption.  The 3.7% of missing 50 or younger people, and the 1.7% of missing 51 or older people, those could be the ones with exemptions.  The estimated 1,720,000 remaining people are maybe children who are not eligible to be vaccinated.
+
+<br>
+
+* * *
+
+### Who is eligible to receive vaccinations
+
+**I believe at the time of the data children 12 and older were eligible to receive vaccinations.**
+
+This [Times of Israel article](https://www.timesofisrael.com/covid-vaccine-for-israeli-babies-toddlers-expected-by-april-says-health-official/) states that children in Israel five and older were eligible to receive vaccinations starting January, 2022.
+
+This December 10th, 2021, [Brookings article](https://www.brookings.edu/blog/up-front/2021/12/10/what-we-can-learn-from-israels-covid-19-vaccination-of-children/) states that children 12 and older were eligible to receive vaccinations and I assume that was true in August of 2021 as well.
+
+The missing 1,720,000 is 19.38% of the population.  This seems reasonably consistent with a figure from [statista.com](https://www.statista.com/statistics/526596/age-structure-in-israel/) that 27.83% of Israel's 2020 population were under 15, if roughly 8.45% of Israel's population were between 12 and 14.
+
+```{r}
+# Missing 1,720,000 / estimated Total population of 8,875,000 = 19.38%
+(estTotalPop - sum(dfPop$trueSum)) / estTotalPop
+```
+
+<br>
+
+* * *
+
+### What does it mean to be fully vaccinated
+
+**Likely at the time being fully vaccinated meant two shots if you were under 40 years of age, and three shots if you were 40 years of age and older and had had your second dose at least five months before.**
+
+This [Reuters article](https://www.reuters.com/world/middle-east/israel-lowers-age-eligibility-covid-19-vaccine-booster-30-health-ministry-2021-08-24/) states Israel lowered the age for access to a booster shot from 40 to 30 years old on August 24th, 2021, if the person received their second dose at least five months before.
+
+<br>
+
+* * *
+
+## Analysis
+
+**Here we answer the first two main questions of the assignment.**
+
+<br>
+
+* * *
+
+### Question 1
+
+**Do you have enough information to calculate the total population? What does this total population represent?**
+
+We don't have enough information to calculate the total population from the chart alone.  We can estimate a missing third group by backing into the missing population percentages, but it's still not enough to reach the total population of Israel estimated at 8,875,000.  In the Relevant Domain Knowledge section we show support that the larger missing population could be children under 12 who are not eligible to be vaccinated.  And maybe the smaller missing population implied by the population percents not adding up to 100% are adults with vaccination exemptions.
+
+<br>
+
+* * *
+
+### Question 2
+
+**Calculate the Efficacy vs. Disease; Explain your results.**
+
+Here we calculate efficacy using the formula provided in the chart.  We populate the chart with Incidence Rate of severe disease per 100K and then manually calculate the efficacy for both ages.
+
+```{r}
+# Add a column with the incidence rate of severe disease per 100K
+df <- mutate(df, IncidenceRate = SevereCases / PopCount * 100000)
+```
+
+```{r}
+# Calculate the vaccine efficacy vs. severe disease for those 50 or younger
+efficacy_50orless <- (1 - (df$IncidenceRate[2] / df$IncidenceRate[1]))
+
+# Calculate the vaccine efficacy vs. severe disease for those 51 or older
+efficacy_51ormore <- (1 - (df$IncidenceRate[4] / df$IncidenceRate[3]))
+```
+
+The vaccine efficacy for those 50 or younger is `r efficacy_50orless`.
+
+The vaccine efficacy for those 51 or older is `r efficacy_51ormore`.
+
+<br>
+
+* * *
+
+## Conclusion
+
+**Here we answer the last main question.**
+
+<br>
+
+* * *
+
+### Question 3
+
+**From your calculation of efficacy vs. disease, are you able to compare the rate of severe cases in unvaccinated individuals to that in vaccinated individuals?**
+
+We are showing in this analysis that being fully vaccinated is efficacious against severe COVID-19 disease.
+
+With more sophisticated data segmenting, or a double-blind health study, we could show differences in the efficacy depending on multiple age brackets or other risk factors such as smoking or obesity.
+
+<br>
+
+* * *
+
+### Future Efforts
+
+I could have also used dplyr to create additional rows for the whole population and then calculated the vaccine efficacy for the whole population.
+
+<br>
+
+* * *
+
+## Source File
+
+The R Markdown file for this document is saved here, [github.com/pkofy/DATA607](https://github.com/pkofy/DATA607), with the name "DATA607WK5Assignment.rmd".
+
+<br>
+
+* * *
+
+<!--
+Sententiae Antiquae
+Всё гениальное просто.
+Everything that is genius is simple.
+-->
+
+
+
