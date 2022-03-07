@@ -1,0 +1,5 @@
+"Age","VaxStat","PopCount","PopPct","SevereCases"
+"<=50","NotVax",1116834,0.233,43
+"<=50","FullVax",3501118,0.730,11
+">50","NotVax",186078,0.079,171
+">50","FullVax",2133516,0.904,290
