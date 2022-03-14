@@ -1,0 +1,659 @@
+---
+title: "DATA607Project2"
+author: "PK O'Flaherty"
+date: '2022-03-13'
+output:
+  html_document:
+    highlight: pygments
+    theme: spacelab
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!--
+Rubric notes:
+1) Each text block should minimally include one header and additional non-header text
+2) Please deliver links to your R Markdown file (in GitHub and rpubs.com)
+-->
+
+<br>
+
+* * *
+
+# Getting Started
+
+## Instructions
+
+>Choose any three of the “wide” datasets identified in the Week 6 Discussion items. For each of the three chosen datasets:  
+>
+ + Create a .CSV file (or optionally, a MySQL database!) that includes all of the information included in the dataset. You’re encouraged to use a “wide” structure similar to how the information appears in the discussion item, so that you can practice tidying and transformations as described below.  
+ + Read the information from your .CSV file into R, and use tidyr and dplyr as needed to tidy and transform your data. [Most of your grade will be based on this step!]  
+ + Perform the analysis requested in the discussion item.  
+ + Your code should be in an R Markdown file, posted to rpubs.com, and should include narrative descriptions of your data cleanup work, analysis, and conclusions.  
+
+<br>
+
+* * *
+
+## Load Libraries
+
+**We are coding in the tidyverse.**
+
+```{r, message=FALSE}
+# Load packages --------------------------------------
+library(tidyverse)
+library(magrittr)
+```
+
+<br>
+
+* * *
+
+# Superhero TV shows
+
+**Deepa identified a Kaggle dataset about superhero TV for analysis, asking:**
+
+ + What is the highest-rated TV show of each year?  
+ + What is the highest-rated TV show from each category in the data set?
+
+<br>
+
+* * *
+
+## Data
+
+**The original data can be found at the following link.  We've saved a copy to our github for reading into this document.**
+
+ANOOP KUMAR RAUT (2022) [www.kaggle.com/anoopkumarraut/superhero-tv-shows/data](https://www.kaggle.com/anoopkumarraut/superhero-tv-shows/data)
+
+```{r}
+# Load data --------------------------------------
+df1 <- read.csv("https://raw.githubusercontent.com/pkofy/DATA607/main/Project2/Dataset_Superhero-TV-Shows.csv", stringsAsFactors = FALSE)
+```
+
+<br>
+
+* * *
+
+## Tidy and Transform
+
+**For NAN handling we're going to remove any records with missing values in any of the columns: `show_title`, `imdb_rating`, `release_year` and `genre`.  We'll look at unique genres to see if we can combine any.  And we'll create a new column with just the release year.**
+
+```{r}
+# Show reader the data
+glimpse(df1)
+```
+
+<br>
+
+* * *
+
+### Simplify the genre
+
+**There are 128 unique combinations of genre represented in the data.  We'll take the first genre before any comma to create a simplified genre column.  For 34 there is no comma and so they are now blank.  Ideally we would copy the value from the genre column to the simple_genre column if missing.**
+
+```{r}
+# There are 128 unique genre combinations
+nrow(count(df1, genre))
+```
+
+```{r}
+# Remove all but the first genre before a comma
+df1$simple_genre <- substr(df1$genre,1,regexpr(",",df1$genre)-1)
+```
+
+```{r}
+# Remove records with blank simple_genre
+df1 <- filter(df1, simple_genre != "")
+```
+
+```{r}
+# The new simplified genres
+count(df1, simple_genre)
+```
+
+<br>
+
+* * *
+
+### Isolate release year
+
+**The current release year is a range with the terminal year blank if still in production.  We'll isolate just the first year of release for use in the analysis.**
+
+```{r}
+# Create a new column with just the release year
+df1$firstyear <- str_extract(df1$release_year, "[0-9]{4}$")
+```
+
+```{r}
+# Remove records with NA in firstyear
+df1 <- filter(df1, firstyear != "NA")
+```
+
+```{r}
+# Show firstyear in order to reader
+t(table(df1$firstyear[order(df1$firstyear)]))
+```
+
+<br>
+
+* * *
+
+### Remove duplicate show titles
+
+**There are several records with duplicate show titles.  Ideally I would compare the duplicates and save the one that is most complete but here we delete records where a previous record had the same show_title.**
+
+```{r}
+# Remove duplicate show titles
+df1 <- df1 %>% distinct(show_title, .keep_all= TRUE)
+```
+
+<br>
+
+* * *
+
+### Remove empty IMDB ratings
+
+**There are no records with missing IMDB ratings to remove.**
+
+```{r}
+# Show reader there are no empty IMDB ratings
+t(table(df1$imdb_rating[order(df1$imdb_rating)]))
+```
+
+<br>
+
+* * *
+
+### Strip or reorder columns
+
+**Here we remove unnecessary columns.**
+
+```{r}
+# Select only the columns we need for analysis
+df1 <- select(df1, show_title, imdb_rating, simple_genre, firstyear)
+```
+
+<br>
+
+* * *
+
+## Analysis
+
+**Here we address the two provided questions.  Ideally we would provide dynamic tables which would allow the user to restrict years or genres.**
+
+<br>
+
+* * *
+
+### Question 1
+
+*What is the highest-rated TV show of each year?*
+
+**We show below the highest-rated TV show of each year in a table.  Only the most recent ten years display outside of RMarkdown.**
+
+```{r}
+# Take the highest rated shows in a given year
+ShowOfTheYear <- df1 %>%
+ group_by(firstyear) %>%
+ slice_max(imdb_rating, n = 1)
+
+# Sort shows by first year of release descending
+arrange(ShowOfTheYear, desc(firstyear))
+```
+
+<br>
+
+* * *
+
+### Question 2
+
+*What is the highest rated TV show from each category in the data set?*
+
+**We show below the highest rated TV show by each genre.**
+
+```{r}
+# Take the highest rated shows in a given genre
+ShowOfTheGenre <- df1 %>%
+ group_by(simple_genre) %>%
+ slice_max(imdb_rating, n = 1)
+
+# Display shows by genre
+ShowOfTheGenre
+```
+
+<br>
+
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+<br>
+
+<!--
+Start of Second Task
+-->
+
+<br>
+
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+# COVID deaths and cases
+
+**Moiya found a dataset from the CDC that has all of the COVID deaths and cases in the United States.  She provided the following analysis requests:**
+
+ + Find the state with the highest and lowest deaths.   
+ + Compare the death rate both before and after the vaccine was released.
+
+<br>
+
+* * *
+
+## Data
+
+**The original data can be found at the following link.  We retrieved a copy at 3:09PM EST, March 13th, 2022, and saved it to our github for reading into this document.**
+
+CDC Case Task Force (Updated daily) [data.cdc.gov/Case-Surveillance/United-States-COVID-19-Cases-and-Deaths-by-State-o](https://data.cdc.gov/Case-Surveillance/United-States-COVID-19-Cases-and-Deaths-by-State-o/9mfq-cb36)
+
+```{r}
+# Load data --------------------------------------
+df2 <- read.csv("https://raw.githubusercontent.com/pkofy/DATA607/main/Project2/United_States_COVID-19_Cases_and_Deaths_by_State_over_Time.csv", stringsAsFactors = FALSE)
+```
+
+<br>
+
+* * *
+
+## Tidy and Transform
+
+**To simplify the project we are going to look at reported data for two days: January 19th in 2021 and 2022.  As a possible expansion we could capture data for the month of January.**
+
+**For our purposes, we're going to look at submission date, state, total cases, total deaths, new cases and new deaths.**
+
+```{r}
+# Show reader the data
+glimpse(df2)
+```
+
+<br>
+
+* * *
+
+### Isolate comparison date
+
+**Here we save dataframes with the values submitted on January 19th for 2021 and 2022.**
+
+```{r}
+# Save extracts of data on specific dates
+Jan192021 <- filter(df2, submission_date =="01/19/2021")
+Jan192022 <- filter(df2, submission_date =="01/19/2022")
+
+# Append new data frames to each other
+Jan19 <- rbind(Jan192021, Jan192022)
+```
+
+<br>
+
+* * *
+
+### Inspect States
+
+**There are 10 additional states reported: DC, NYC, five territories and three freely associated states.  From the [CDC's website of Island Affairs](https://www.cdc.gov/publichealthgateway/oia/index.html):**
+
+>+ Territories are sub-national administrative divisions overseen by the US government.  
++ Freely associated states are independent nations that have signed a comprehensive agreement with the US called a “Compact of Free Association,” which governs diplomatic, economic, and military relations with the US.  
+
++ City/District  
+    + DC  - District of Columbia  
+    + NYC - New York City  
++ Territories  
+    + AS - American Samoa  
+    + MP - Commonwealth of the Northern Mariana Islands  
+    + GU - Guam  
+    + PR - Puerto Rico  
+    + VI - US Virgin Islands  
++ Freely associated states  
+    + FSM - Federated States of Micronesia  
+    + PW  - Republic of Palau  
+    + RMI - Republic of the Marshall Islands   
+
+```{r}
+t(table(count(Jan19, state)))
+```
+
+<br>
+
+* * *
+
+### Strip or reorder columns
+
+**Here we remove unnecessary columns.**
+
+```{r}
+# Select only the columns we need for analysis
+Jan192021 <- select(Jan192021, submission_date, state, tot_cases, new_case, tot_death, new_death)
+Jan192022 <- select(Jan192022, submission_date, state, tot_cases, new_case, tot_death, new_death)
+```
+
+<br>
+
+* * *
+
+### Mutate columns
+
+**Here we create a new column with deaths as a percentage of total cases.**
+
+```{r}
+# Create column for deaths as a percent of total cases
+Jan192021 <- Jan192021 %>% mutate(dpc = tot_death / tot_cases)
+Jan192022 <- Jan192022 %>% mutate(dpc = tot_death / tot_cases)
+```
+
+<br>
+
+* * *
+
+## Analysis
+
+**Here we address the two provided analysis requests; However, instead of finding the state with the highest and lowest deaths we will find the states with the highest and lowest deaths as a percentage of cases.**
+
+<br>
+
+* * *
+
+### Analysis Request 1
+
+*Find the states with the highest and lowest deaths as a percentage of cases.*
+
+**We have printed tables of the highest and lowest five states by deaths as a percent of cases for our chosen date, January 19th, in both 2021 and 2022.  While we are interested in the islands, we selectively increased the number of results to show the first five of the 50 states, NYC, DC or Puerto Rico.**
+
+<br>
+
+<center>**Deaths as a Percent of Cases on January 19, 2021:**</center>
+
+| Highest       | Percent | Lowest        | Percent |
+| ------------- |:-------:| ------------- |:-------:|
+| New York City | 4.77%   | Utah          | 0.46%   |
+| New Jersey    | 3.23%   | Alaska        | 0.60%   |
+| Massachusetts | 2.93%   | Nebraska      | 1.00%   |
+| Connecticut   | 2.88%   | Idaho         | 1.04%   |
+| Washington DC | 2.51%   | Wisconsin     | 1.05%   |
+
+<center>**Deaths as a Percent of Cases on January 19, 2022:**</center>
+
+| Highest       | Percent | Lowest        | Percent |
+| ------------- |:-------:| ------------- |:-------:|
+| New York City | 1.72%   | Utah          | 0.50%   |
+| Mississippi   | 1.61%   | Vermont       | 0.56%   |
+| Alabama       | 1.56%   | Alaska        | 0.56%   |
+| Pennsylvania  | 1.55%   | Hawaii        | 0.62%   |
+| Arizona       | 1.53%   | Puerto Rico   | 0.83%   |
+
+```{r}
+# Highest five states with deaths as a percent of cases on 1/19/2021
+High5_2021 <-head(arrange(Jan192021, desc(dpc)), n = 7)
+High5_2021
+```
+
+```{r}
+# Lowest five states with deaths as a percent of cases on 1/19/2021
+Low5_2021 <-head(arrange(Jan192021, dpc), n = 8)
+Low5_2021
+```
+
+```{r}
+# Highest five states with deaths as a percent of cases on 1/19/2022
+High5_2022 <-head(arrange(Jan192022, desc(dpc)), n = 6)
+High5_2022
+```
+
+```{r}
+# Lowest five states with deaths as a percent of cases on 1/19/2022
+Low5_2022 <-head(arrange(Jan192022, dpc), n = 11)
+Low5_2022
+```
+
+<br>
+
+* * *
+
+### Analysis Request 2
+
+*Compare the death rate both before and after the vaccine was released.*
+
+**By inspection of the tables above we can see that the death rate as a percent of cases declined after vaccines were released.  When we look at it analytically we see death as a percent of cases on January 19th as follows:**
+
+**2021: 1.73%**
+
+**2022: 1.25%**
+
+```{r}
+# Calculate deaths as a percent of cases for 2021
+dpc2021 <- sum(Jan192021$tot_death) / sum(Jan192021$tot_cases)
+dpc2021
+```
+
+```{r}
+# Calculate deaths as a percent of cases for 2022
+dpc2022 <- sum(Jan192022$tot_death) / sum(Jan192022$tot_cases)
+dpc2022
+```
+
+<br>
+
+* * *
+
+### Special note
+
+**Since we're using one day's data, we're using Total deaths and Total cases as an approximation.**
+
+**If we were doing a deeper analysis we would look at new deaths and new cases over equal periods of time, say a month or six-months.**
+
+**By using Total deaths and Total cases as an approximation, we are under representing the difference between 2021 and 2022's deaths as a percent of cases, because the second date contains deaths and cases from the first date as well.**
+
+<br>
+
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+<br>
+
+<!--
+Start of Third Task
+-->
+
+<br>
+
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+# Ramen Quality Dataset
+
+**Benson found a Kaggle dataset called 'The Ramen Rater' that is a collection of ramen product reviews. He provided the following analysis requests:**
+
+ + Analyze the favorite flavor
+ + Analyze the best brand  
+ + Analyze the best ramen style  
+
+<br>
+
+* * *
+
+## Data
+
+**The data we are using can be found at the following Kaggle link.  We saved a copy to our github for reading into this document.**
+
+Alexsey Bilogur (2018) [kaggle.com/residentmario/ramen-ratings](https://www.kaggle.com/residentmario/ramen-ratings)
+
+**This dataset was originally from the BIG LIST on [The Ramen Rater](https://www.theramenrater.com/), a "product review website for the hardcore ramen enthusiast".**
+
+**Since the discussion topic suggesting this dataset was titled "Wine Quality Dataset" can we call the ramen enthusiasts, "rammeliers"?**
+
+```{r}
+# Load data --------------------------------------
+df3 <- read.csv("https://raw.githubusercontent.com/pkofy/DATA607/main/Project2/ramen-ratings.csv", stringsAsFactors = FALSE)
+```
+
+<br>
+
+* * *
+
+## Tidy and Transform
+
+**To answer the requests (best flavor, brand, style) it looks like we need the stars, style and brand columns.  It looks like there is no flavor column unless you can extract it from the Variety name.  Instead we'll likely look into which country produces the best ramen. One difficulty we may run into is how to handle multiple reviews for the same variety.  Or are there any ramen with the same variety name?**
+
+```{r}
+# Show reader the data
+glimpse(df3)
+```
+
+<br>
+
+* * *
+
+### Stars/Rating Check
+
+**Here we make sure the ratings are standardized.**
+
+All of the ratings are from 0.00 to 5.00.  Three are unrated which we'll have to remove.  The ratings are strings which means 5, 5.0 and 5.00 are recorded separately so we'll have to turn them into numbers.
+
+```{r}
+# Inspect ratings
+t(table(df3$Stars[order(df3$Stars)]))
+```
+
+```{r}
+# Remove records without a rating
+df3 <- filter(df3, Stars != "Unrated")
+```
+
+```{r}
+# Turn the Stars from strings to numbers
+df3$Stars <- as.numeric(df3$Stars)
+```
+
+<br>
+
+* * *
+
+### Variety names
+
+**There are 2577 rows and 2410 distinct variety names so we expect 167 duplicates.  We are going to leave the records with duplicate variety names in.  They could be the same variety but in multiple styles (cup, bowl, pack) or multiple brands selling the same variety.  My guess now is that the website [The Ramen Rater](https://www.theramenrater.com/) aggregates reviews for the same product so we don't know how many reviews went into each review we have on record and each record is a unique product.**
+
+```{r}
+# The number of records minus the number of records with distinct variety name
+nrow(df3) - nrow(distinct(df3, Variety))
+```
+
+```{r}
+# The most common varieties are "Chicken" and "Beef"
+df3 %>% 
+  group_by(Variety) %>% 
+  filter(n()>6)
+```
+
+<br>
+
+* * *
+
+## Analysis
+
+**Here we address the three provided analysis requests; However, instead of looking at the favorite flavor we're going to look at which country has the highest average rating.**
+
+<br>
+
+* * *
+
+### Analysis Request 1
+
+*Analyze the best brand.*
+
+**More than 20 brands have a 5.00 average rating for their products.  The first 20 are listed below:**
+
+```{r}
+# Calculate the average rating by brand
+branddata <- df3 %>% 
+  group_by(Brand) %>% 
+  summarise(meanstars = mean(Stars)) 
+branddata <- arrange(branddata, desc(meanstars))
+head(branddata, n=20)
+```
+
+<br>
+
+* * *
+
+### Analysis Request 2
+
+*Analyze the best ramen style.*
+
+**In descending order of quality we have the highest, "Bar", followed by "Box", "Pack", "Bowl", "Tray" and "Can" and "Cup" are tied for last.**
+
+**I looked on Amazon at Ramen types and saw Boxes, Packs, Bowls and Cups, but no Bars, Trays or Cans.  So make sure your ramen comes in a box!  If they put that much money into the packaging then maybe they put more money into the ingredients.  Or maybe ramen IS like wine and it tastes better when it's expensive!**
+
+```{r}
+# Calculate the average rating by style
+styledata <- df3 %>% 
+  group_by(Style) %>% 
+  summarise(meanstars = mean(Stars)) 
+styledata <- arrange(styledata, desc(meanstars))
+head(styledata, n=20)
+```
+
+<br>
+
+* * *
+
+### Analysis Request 3
+
+*Which country makes the best ramen on average?*
+
+**The country data is so intriguing I have to show the top 20 and the bottom 20.**
+
+Number 1 is Brazil at 4.35!
+
+Number 2 is Sarawak at 4.33.  (Sarawak is the part of Malaysia on Borneo island.)
+
+Number 6 is Indonesia at 4.07 - makes sense, they have Goreng Rendang.
+
+Second to last at Number 37 is Canada at 2.24!
+
+Dubai and Finland are tied in the middle with an average rating of 3.58.
+
+```{r}
+# Calculate the average rating by country, descending
+countrydata <- df3 %>% 
+  group_by(Country) %>% 
+  summarise(meanstars = mean(Stars)) 
+countrydata_desc <- arrange(countrydata, desc(meanstars))
+head(countrydata_desc, n=20)
+```
+
+```{r}
+# Calculate the average rating by country, descending
+countrydata <- df3 %>% 
+  group_by(Country) %>% 
+  summarise(meanstars = mean(Stars)) 
+countrydata_ascend <- arrange(countrydata, meanstars)
+head(countrydata_ascend, n=20)
+```
+
+<br>
+
+* * *
+
+# Conclusion
+
+**This was a good exercise.  It helps me see the similarity in approaching data and yet how each dataset needs unique tricks and consideration to honor the requests.**
+
+**As a beginner I wrote these backwards: Analysis, Transformations, Explanations.  With more practice I can see how it becomes easier to anticipate the transformations for the analysis and write the explanations as you go from beginning to end.**
+
+<br>
+
+* * *
+
+<!--
+Sententiae Antiquae
+Без муки нет науки.
+Without torture no science.
+-->
+
