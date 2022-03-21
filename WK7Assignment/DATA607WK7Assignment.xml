@@ -1,0 +1,24 @@
+<root>
+
+  <books>
+    <book>The Information</book>
+    <author>James Gleick</author>
+    <published>2011</published>
+    <description>Redundancy and patterns in language and entropy</description>
+  </books>
+
+  <books>
+    <book>Hold Me Tight</book>
+    <author>Dr. Sue Johnson</author>
+    <published>2008</published>
+    <description>Explains childhood attachment theory as it applies to adult relationships</description>
+  </books>
+
+  <books>
+    <book>Chasing the Scream</book>
+    <author>Johann Hari and Second Author</author>
+    <published>2015</published>
+    <description>Has an arc from the war on drugs, a scientific experiment, to a possible peace with drugs</description>
+  </books>
+
+</root>
