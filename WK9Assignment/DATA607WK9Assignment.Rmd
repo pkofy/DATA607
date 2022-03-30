@@ -1,0 +1,263 @@
+---
+title: "DATA607WK9Assignment"
+author: "PK O'Flaherty"
+date: '2022-03-29'
+output:
+  html_document:
+    highlight: pygments
+    theme: spacelab
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!--
+Rubric notes:
+1) Each text block should minimally include one header and additional non-header text
+2) Can you add any ggplot2?
+3) Please deliver links to your R Markdown file (in GitHub and rpubs.com)
+
+Preparing Data (25 points)
+ - Choose one of the New York Times APIs, request API key (1 point)
+ - Construct an interface in R to read in the JSON data (14 points)
+ - Transform data to an R dataframe (10 points)
+Reproducibility (2 points)
+ - Using R Markdown text and headers (2 points)
+Workflow (2 points)
+ - Included a brief description of the assigned problem.
+ - Included an overview of your approach. Explained your reasoning.
+ - Provided a conclusion (including any findings and recommendations).
+Submission (1 points)
+ - Published to rpubs and provided a link in your assignment submission.
+ - Published to GitHub and provided a link in your assignment submission.
+-->
+
+<br>
+
+* * *
+
+<img src="https://static01.nyt.com/images/2022/03/27/world/27russia-media1/27russia-media1-mediumThreeByTwo440.jpg" alt="President Volodymyr Zelensky of Ukraine speaking with hands outstretched in front of a Ukrainian flag" style="max-height: 600px; max-width: 600px;">
+
+#### President Volodymyr Zelensky of Ukraine, from [www.nytimes.com/2022/03/27/world/europe/russia-media-zelensky](https://www.nytimes.com/2022/03/27/world/europe/russia-media-zelensky.html)
+
+<br>
+
+* * *
+
+# Web APIs
+
+<br>
+
+<br>
+
+## Getting Started
+
+<br>
+
+### Instructions
+
+>Choose one of the New York Times APIs, construct an interface in R to read in the JSON data, and transform it into an R DataFrame.
+
+<br>
+
+### Libraries
+
+**We need the rjson package in order to read from JSON to R Programming.**
+
+```{r, message=FALSE}
+# Load packages --------------------------------------
+library(rjson)
+library(knitr)
+```
+
+<br>
+
+* * *
+
+## Approach
+
+**A detailed account of how we approached the task**
+
+First we created an account at [The New York Times Developer Network](https://developer.nytimes.com/) to obtain an API key.
+
+We selected the most viewed articles for the last seven days from the 'Most Popular' API.
+
+Once we read in the JSON file and saw how it was more branched than tabular and attempts at wrangling it (contenting, parsing, flattening, unlisting) were unsuccessful for us, we switched to extracting specific columns instead of representing the whole JSON file as a data frame.
+
+By experimentation we were able to reference specific content, determine it was a string, and use a for loop to create a vector of just that content for all twenty entries.
+
+We repeated that for four columns to create our dataframe.
+
+<br>
+
+* * *
+
+## Preparing Data
+
+<br>
+
+### New York Times API
+
+**Here we are calling the most viewed articles for the last seven days from the 'Most Popular' API, using our NYT Developer API key.**
+
+```{r}
+# The API is called and read from JSON into R in one step
+r <- fromJSON(file = "https://api.nytimes.com/svc/mostpopular/v2/viewed/1.json?api-key=UNraXJrekYbc5zM3BzNszXT33RTbMm4U")
+```
+
+<br>
+
+### Interface in R
+
+**The data is already in R.  We can see below what the 20th most viewed article of the last 7 days was and see the structure of the data.**
+
+**Content in order presented below that could be of interest include:**
+
+ - `$url`
+ - `$published_date`
+ - `$adx_keyword`
+ - `$byline` (authors)
+ - `$title`
+ - `$abstract`
+ - `$'media_metadata'` (tags related to photos including the picture of Zelensky above)
+
+```{r}
+# View 20th result
+r$results[20]
+```
+
+<br>
+
+### Transform to an R Dataframe
+
+**Here we create four vectors to read into the dataframe.**
+
+Code Summary  
+ + Create the URL vector  
+ + Create the title vector  
+ + Create the keywords vector  
+ + Create the abstract vector  
+ + Construct and view dataframe
+
+```{r}
+# Create the URL vector
+url <- c(1:20)
+for (x in c(1:20)){
+  url[x] <- r$results[x][[1]]$url
+}
+```
+
+```{r}
+# Create the title vector
+title <- c(1:20)
+for (x in c(1:20)){
+  title[x] <- r$results[x][[1]]$title
+}
+```
+
+```{r}
+# Create the keywords vector
+keywords <- c(1:20)
+for (x in c(1:20)){
+  keywords[x] <- r$results[x][[1]]$adx_keywords
+}
+```
+
+```{r}
+# Create the abstract vector
+abstract <- c(1:20)
+for (x in c(1:20)){
+  abstract[x] <- r$results[x][[1]]$abstract
+}
+```
+
+```{r}
+# Construct and view dataframe
+df <- data.frame(url, title, keywords, abstract)
+kable(df)
+```
+
+<br>
+
+* * *
+
+## Conclusion
+
+**I'm more confident I can pull data from API and JSON in the future.  Once I've read the data into R I can use iterative code chunks to isolate individual fields of interest.  For example:**
+
+`r$results` -> `r$results[1]` -> `r$results[1][[1]]` -> `r$results[1][[1]]$url`
+
+**I would like more experience with JSON and API calls and the functions used to manipulate complicated, branching data structures.**
+
+**As a flex we could try to make a word cloud out of the keywords from all twenty articles.**
+
+<br>
+
+### Word Cloud
+
+**Here we generate a word cloud using a towardsdatascience article linked in the References section below.**
+
+```{r, message=FALSE}
+#install.packages("wordcloud")
+library(tm)
+library(wordcloud)
+#library(RColorBrewer)
+library(magrittr)
+```
+
+```{r}
+# Create a corpus
+text <- df$keywords
+docs <- Corpus(VectorSource(text))
+```
+
+```{r, warning = FALSE}
+# Clean the corpus
+docs <- docs %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(stripWhitespace)
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeWords, stopwords("english"))
+```
+
+```{r}
+# Create a Document Term Matrix to assign relevance to words
+dtm <- TermDocumentMatrix(docs)
+matrix <- as.matrix(dtm)
+words <- sort(rowSums(matrix),decreasing=TRUE)
+df <- data.frame(word = names(words),freq=words)
+```
+
+```{r, warning=FALSE}
+# Generate word cloud
+set.seed(2158)
+wordcloud(words = df$word, freq = df$freq,
+          min.freq = 1, max.words=200,
+          random.order=FALSE, rot.per=0.35,
+          colors=brewer.pal(8, "Dark2"))
+```
+
+<br>
+
+### References
+
+**I followed this Medium article almost to the line to generate the word cloud.**
+
+Celine Van den Rul (2019) [towardsdatascience.com/create-a-word-cloud-with-r](https://towardsdatascience.com/create-a-word-cloud-with-r-bde3e7422e8a)
+
+<br>
+
+* * *
+
+<!--
+Sententiae Novae
+TEAM? Toll! Ein Anderer Macht's!
+TEAM? Great! An other does it!
+-->
+
+
+
+
