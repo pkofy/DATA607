@@ -1,0 +1,601 @@
+---
+title: "DATA607WK10Assignment"
+author: "PK O'Flaherty"
+date: '2022-04-10'
+output:
+  html_document:
+    highlight: pygments
+    theme: spacelab
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!--
+Rubric notes:
+1) Each text block should minimally include one header and additional non-header text
+2) Can you add any ggplot2 or visuals?
+3) Please deliver links to your R Markdown file (in GitHub and rpubs.com)
+
+
+Re-create base analysis (5 points)
+ - Re-create and analyze primary code from the textbook.
+ - Provide citation to text book, using a standard citation syntax like APA or MLA.
+Extend analysis to new corpus and new lexicon (20 points)
+ - Identify and implement a different corpus to perform sentiment analysis
+ - Identify and implement an additional lexicon for sentiment analysis
+Reproducibility and Submission (1 point)
+ - Reference your selected corpus data from a web URL.
+ - Using R Markdown text and headers.
+ - Published to rpubs and provided a link in your assignment submission.
+ - Published to GitHub and provided a link in your assignment submission.
+Workflow (4 points)
+ - Included a brief description of the assigned problem.(1 point)
+ - Included an overview of your approach. Explained your reasoning.(1 point)
+ - Provided a conclusion (including any findings and recommendations). Which lexicon did you feel was
+most useful for your corpus, and why? (2 points)
+ 
+-->
+
+<br>
+
+* * *
+
+# Sentiment Analysis
+
+<br>
+
+<br>
+
+## Getting Started
+
+**Problem Description and Approach**
+
+>We're going to recreate and analyze primary code from Chapter 2, Sentiment analysis with tidy data, from Julia Silge & David Robinson's *Text Mining with R* (Last built 2022-02-07).
+We'll extend that code to a book or selection of books from the Gutenberg project and incorporate an additional sentiment lexicon.
+
+* * *
+
+<br>
+
+## Re-create base analysis
+
+<br>
+
+**The following code is from Julia Silge and David Robinson's (2017) [Text Mining with R, Chapter 2: Sentiment analysis with tidy data](https://www.tidytextmining.com/sentiment.html)**
+
+<br>
+
+### Load packages
+
+**We are coding in the Tidyverse with additional packages:**  
+ - **tidytext** | for text mining  
+ - **janeaustenr** | to load a corpus of Jane Austen's books  
+ - **wordcloud** | for wordclouds  
+ - **reshape2** | allows more control over wordcloud shape  
+
+```{r, message=FALSE}
+# Load packages --------------------------------------
+#install.packages('textdata')
+library(tidyverse)
+library(tidytext)
+library(janeaustenr)
+library(wordcloud)
+library(reshape2)
+```
+
+<br>
+
+### Pull sentiment lexicons
+
+**We're pulling the following sentiment lexicons.**  
+
+**AFINN-111** This dataset was published in Finn Ärup Nielsen (2011), “A new ANEW: Evaluation of a word list for sentiment analysis in microblogs”, Proceedings of the ESWC2011 Workshop on 'Making Sense of Microposts': Big things come in small packages (2011) 93-98.  
+
+**Bing**  This dataset was first published in Minqing Hu and Bing Liu, “Mining and summarizing customer reviews.”, Proceedings of the ACM SIGKDD International Conference on Knowledge Discovery & Data Mining (KDD-2004), 2004.  
+
+**nrc**  This dataset was published in Saif M. Mohammad and Peter Turney. (2013), ``Crowdsourcing a Word-Emotion Association Lexicon.'' Computational Intelligence, 29(3): 436-465.  
+
+```{r, message = FALSE}
+# Pull sentiment lexicons
+get_sentiments("afinn")
+get_sentiments("bing")
+get_sentiments("nrc")
+```
+
+<br>
+
+### Convert text to tidy format
+
+**We're converting to tidy format (one word per row) using `unnest_tokens()` and adding columns for the chapter and line number.**
+
+```{r}
+# Convert to tidy format with chapter and line numbers
+tidy_books <- austen_books() %>%
+  group_by(book) %>%
+  mutate(
+    linenumber = row_number(),
+    chapter = cumsum(str_detect(text, 
+                                regex("^chapter [\\divxlc]", 
+                                      ignore_case = TRUE)))) %>%
+  ungroup() %>%
+  unnest_tokens(word, text)
+```
+
+<br>
+
+### Apply sentiment lexicons 
+
+**Here we apply two examples of sentiment analysis.**
+
+Code Summary:  
+ - Show 'Joy' words by frequency using `nrc`  
+ - Graph the plot trajectory of each novel using `bing`  
+
+```{r}
+# Show 'Joy' words by frequency using nrc
+
+# Inner join joy words from the nrc sentiment lexicon to the text 
+nrc_joy <- get_sentiments("nrc") %>% 
+  filter(sentiment == "joy")
+
+# Tabulate the joy words from the book 'Emma' by frequency
+tidy_books %>%
+  filter(book == "Emma") %>%
+  inner_join(nrc_joy) %>%
+  count(word, sort = TRUE)
+```
+
+```{r}
+# Graph the plot trajectory of each novel using bing
+
+# Create chunks of 80 lines for sentiment analysis with bing
+jane_austen_sentiment <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(book, index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+# Graph the bins by how positive or negative they are
+ggplot(jane_austen_sentiment, aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+```
+
+<br>
+
+### Compare sentiment lexicons
+
+**Here we look into how the three sentiment lexicons perform differently when examining the sentiment changes over the narrative arc of the book *Pride and Prejudice*.**  
+
+Code Summary:  
+ - Isolate the book, Pride & Prejudice  
+ - Find the net sentiment per each lexicon across the same chunks  
+ - Visualize the net sentiment per each lexicon across the same chunks
+
+```{r}
+# Isolate the book, Pride & Prejudice
+pride_prejudice <- tidy_books %>% 
+  filter(book == "Pride & Prejudice")
+```
+
+```{r}
+# Find the net sentiment per each lexicon across the same chunks
+
+# AFINN requires a separate pattern since it measures sentiment between -5 and 5
+afinn <- pride_prejudice %>% 
+  inner_join(get_sentiments("afinn")) %>% 
+  group_by(index = linenumber %/% 80) %>% 
+  summarise(sentiment = sum(value)) %>% 
+  mutate(method = "AFINN")
+
+# Bing and nrc use the same pattern
+bing_and_nrc <- bind_rows(
+  pride_prejudice %>% 
+    inner_join(get_sentiments("bing")) %>%
+    mutate(method = "Bing et al."),
+  pride_prejudice %>% 
+    inner_join(get_sentiments("nrc") %>% 
+                 filter(sentiment %in% c("positive", 
+                                         "negative"))
+    ) %>%
+    mutate(method = "NRC")) %>%
+  count(method, index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment,
+              values_from = n,
+              values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+```
+
+```{r}
+# Visualize the net sentiment per each lexicon across the same chunks
+bind_rows(afinn, 
+          bing_and_nrc) %>%
+  ggplot(aes(index, sentiment, fill = method)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~method, ncol = 1, scales = "free_y")
+```
+
+**The chapter notes that the lexicons perform similarly in tracking the relative changes in sentiment across the novel but with different values.  NRC shifts to higher values. AFINN has more variance and Bing finds longer stretches of similar text.**
+
+**The chapter suggests this is because while both NRC and Bing have more negative to positive words, Bing has a higher ratio of negative to positive words than NRC does.**
+
+Code Summary:  
+ - Show negative to positive words in NRC  
+ - Show negative to positive words in Bing  
+
+```{r}
+# Show negative to positive words in NRC 
+get_sentiments("nrc") %>% 
+  filter(sentiment %in% c("positive", "negative")) %>% 
+  count(sentiment)
+```
+
+```{r}
+# Show negative to positive words in Bing
+get_sentiments("bing") %>% 
+  count(sentiment)
+```
+
+<br>
+
+### Custom Stop words
+
+**Here we track which words contributed to which sentiment, positive or negative in this case, to identify words that are confounding the results for this particular text.**
+
+Code Summary:  
+ - Tabulate words by frequency that contribute to either sentiment  
+ - Graph the counts for examination  
+ - Create a custom stop-words list to address the confounding word "miss"  
+
+```{r}
+# Tabulate words by frequency that contribute to either sentiment
+bing_word_counts <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+```
+
+```{r}
+# Graph the counts for examination
+bing_word_counts %>%
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(x = "Contribution to sentiment",
+       y = NULL)
+```
+
+```{r}
+# Create a custom stop-words list to address the confounding word "miss"
+custom_stop_words <- bind_rows(tibble(word = c("miss"),  
+                                      lexicon = c("custom")), 
+                               stop_words)
+
+# For demonstration only
+custom_stop_words
+```
+
+<br>
+
+### Wordclouds
+
+**Here we create two word clouds, one by frequency and by contribution to net sentiment.**
+
+Code Summary:  
+ - Wordcloud of most frequent words  
+ - Wordcloud of most frequent words split by postive or negative sentiment
+
+```{r}
+# Wordcloud of most frequent words
+set.seed(2248)
+tidy_books %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+```
+
+```{r}
+# Wordcloud of most frequent words split by postive or negative sentiment
+set.seed(2341)
+tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("gray20", "gray80"),
+                   max.words = 100)
+```
+
+<br>
+
+### Other units of text
+
+Code Summary:
+ - Example sentence after tokenizing text into sentences
+ - Split the series of books by chapter using a regex pattern
+ - Show the chapter from each book with the most negative net sentiment
+
+```{r}
+# Tokenize text into sentences
+p_and_p_sentences <- tibble(text = prideprejudice) %>% 
+  unnest_tokens(sentence, text, token = "sentences")
+
+# Show example sentence
+p_and_p_sentences$sentence[50]
+```
+
+**The chapter suggests trying "iconv(text, to = 'latin') in a mutate statement before unnesting" if the sentence tokenizing is having trouble with UTF-8 encoded text, which could improved by changing to ASCII punctuation, "especially with sections of dialogue".**
+
+```{r}
+# Split the series of books by chapter using a regex pattern
+austen_chapters <- austen_books() %>%
+  group_by(book) %>%
+  unnest_tokens(chapter, text, token = "regex", 
+                pattern = "Chapter|CHAPTER [\\dIVXLC]") %>%
+  ungroup()
+
+# Demonstrate split by chapters
+austen_chapters %>% 
+  group_by(book) %>% 
+  summarise(chapters = n())
+```
+
+```{r}
+# Show the chapter from each book with the most negative net sentiment
+
+# Identify just negative words from Bing
+bingnegative <- get_sentiments("bing") %>% 
+  filter(sentiment == "negative")
+
+# Count words for each chapter
+wordcounts <- tidy_books %>%
+  group_by(book, chapter) %>%
+  summarize(words = n())
+
+# Tabulate chapters with the highest ratio of negative words to words
+tidy_books %>%
+  semi_join(bingnegative) %>%
+  group_by(book, chapter) %>%
+  summarize(negativewords = n()) %>%
+  left_join(wordcounts, by = c("book", "chapter")) %>%
+  mutate(ratio = negativewords/words) %>%
+  filter(chapter != 0) %>%
+  slice_max(ratio, n = 1) %>% 
+  ungroup()
+```
+
+<br>
+
+* * *
+
+## New corpus and lexicon
+
+**Here we extend the code above to a new corpus and incorporate an additional lexicon for sentiment analysis.**
+
+<br>
+
+### New corpus
+
+**We are going to apply sentiment analysis to The Brothers Karamazov by Fyodor Dostoyevsky using the gutenbergr package.  Visit (gutenberg.org)[https://www.gutenberg.org/] to learn more about Project Gutenberg.**
+
+Fyodor Dostoyevsky, translated by Constance Garnett, (1879) *The Brothers Karamazov* (Gutenberg book ID 28054)[https://www.gutenberg.org/ebooks/28054]
+
+Code Summary:  
+ - Load packages  
+ - Download book  
+ - Truncate book (not used in final knit)
+
+```{r, message=FALSE}
+# Load packages --------------------------------------
+#install.packages('gutenbergr')
+library(gutenbergr)
+```
+
+```{r}
+# Download book
+TheBroKov <- gutenberg_download(28054)
+```
+
+```{r}
+# Truncate book (not used in final knit)
+TheBroKovSmall <- data.frame(c(1:37250))
+TheBroKovSmall <- TheBroKov[c(1:37250),c(2)]
+```
+
+<br>
+
+### New sentiment lexicon
+
+**The syuzhet package contains the afinn, bing and nrc lexicons above, in addition to the syuzhet lexicon developed in the Nebraska Literary Lab.  It also has a way to implement Stanford's coreNLP sentiment parser which could be a future flex to implement.**
+
+Jockers ML (2015). *Syuzhet: Extract Sentiment and Plot Arcs from Text.* (https://github.com/mjockers/syuzhet)[https://github.com/mjockers/syuzhet].
+
+```{r, message=FALSE}
+# Load packages --------------------------------------
+#install.packages('syuzhet')
+library(syuzhet)
+```
+
+<br>
+
+* * *
+
+## New analysis
+
+**This is a hodgepodge of functionality.**
+
+<br>
+
+### Optional custom stop-words
+
+**'Chapter' was inordinately present in the first 1000 lines of text and so has been added to the stop-words list.  We're leaving behind the chapter numerals, e.g. 'iv' 'iii' 'vi'.**
+
+```{r}
+# Add custom stop-words like "chapter"
+custom_stop_words <- bind_rows(tibble(word = c("chapter"),  
+                                      lexicon = c("custom")), 
+                               stop_words)
+```
+
+<br>
+
+### Process text
+
+**Here we turn the text into tidy format with one word one row.**
+
+```{r}
+# Remove stop words
+# Toggle TheBroKovSmall with TheBroKov$text for final run
+Tidy_tbk <- TheBroKovSmall %>% unnest_tokens(word,text) %>% anti_join(custom_stop_words)
+```
+
+<br>
+
+### Wordclouds
+
+**Here we create two word clouds, one by frequency and one by nrc sentiment.**
+
+Code Summary:  
+ - Wordcloud of most frequent words  
+ - Wordcloud of most frequent words split by nrc sentiment
+
+```{r, warning=FALSE}
+# Wordcloud of most frequent words
+set.seed(4647)
+Tidy_tbk %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 360), scale=c(3.5,1))
+```
+
+```{r, warning=FALSE}
+# Wordcloud of most frequent words split by nrc sentiment
+set.seed(4749)
+Tidy_tbk %>%
+  inner_join(get_sentiments("nrc")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("red", "orange", "yellow", "green", "blue", "darkblue", "purple", "black", "gray", "brown"),
+                   max.words = 360)
+```
+
+<br>
+
+### Bing word count
+
+**Here we visualize the most frequent words that contributed to net sentiment using the Bing lexicon.**
+
+Code Summary:  
+ - Tabulate words by frequency that contribute to either sentiment  
+ - Graph the counts for examination  
+
+```{r}
+# Tabulate words by frequency that contribute to either sentiment
+bing_word_counts <- Tidy_tbk %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+```
+
+```{r}
+# Graph the counts for examination
+bing_word_counts %>%
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(x = "Contribution to sentiment",
+       y = NULL)
+```
+
+<br>
+
+### Counts by nrc
+
+**Here we show the words most contributing to the joy sentiment with nrc.  As a flex we could track this for the other six nrc emotion sentiments and make a chart however we won't attempt that yet.**
+
+```{r}
+# Show 'Joy' words by frequency using nrc
+nrc_joy <- get_sentiments("nrc") %>% 
+  filter(sentiment == "joy")
+
+# Tabulate the joy words from the book 'Emma' by frequency
+Tidy_tbk %>%
+  inner_join(nrc_joy) %>%
+  count(word, sort = TRUE)
+
+#anger, fear, anticipation, trust, surprise, sadness, joy, and disgust
+```
+
+### Syuzhet attempt
+
+**I cannot get.sentences or get.sentiment from the syuzhet package and will need to improve this.**
+
+```{r, eval=FALSE}
+stbk <- get.sentiment(Tidy_tbk, method="syuzhet")
+```
+
+
+<br>
+
+* * * 
+
+## Conclusion
+
+It's tough to extend code to new problems without breaking down the original code into individual components.  I'd like to spend more time with text mining and breaking apart the code into first principals.
+
+My favorite lexicons are bing for simplicity, and nrc for the emotional sentiments.
+
+I'd like to go back and create chunks of code from my text for the plot analysis, and truly duplicate the original analysis with the new text.  
+
+I would also like to spend more time to work through the entire syuzhet vignette to explore its capabilities and introduce myself to the Stanford coreNLP functions.
+
+Additionally, when I tried to run the whole book it failed but I don't think the code was the issue.  I used the truncated version of the code and was successful with 10,000 lines and then running the whole 37,250 lines through the truncated version.
+
+<br>
+
+* * *
+
+## Resources
+
+**The following pages were helpful in navigating this assignment.**
+
+A resource for all of the NLP packages in R:  
+(https://cran.r-project.org/web/views/NaturalLanguageProcessing.html)[https://cran.r-project.org/web/views/NaturalLanguageProcessing.html]  
+
+The vignette illustrating the syuzhet package:  
+(https://CRAN.R-project.org/package=syuzhet)[https://CRAN.R-project.org/package=syuzhet]  
+
+A blog post by Julia Silge, co-author of *Text Mining in R*:  
+(https://juliasilge.com/blog/if-i-loved-nlp-less/)[https://juliasilge.com/blog/if-i-loved-nlp-less/]  
+
+A Medium article by Namitha Deshpande (2020):  
+(https://medium.com/analytics-vidhya/text-mining-with-r-d5606b3d7bec)[https://medium.com/analytics-vidhya/text-mining-with-r-d5606b3d7bec]  
+
+<br>
+
+* * *
+
+<!--
+Quotes from The Brothers Karamazov
+
+Beauty is a terrible and awful thing! It is terrible because it has not been fathomed, for God sets us nothing but riddles. Here the boundaries meet and all contradictions exist side by side.
+
+In most cases, people, even the most vicious, are much more naive and simple-minded than we assume them to be. And this is true of ourselves too.
+
+The more I detest men individually the more ardent becomes my love for humanity.
+
+I may be wicked, but still I gave an onion.
+-->
+
+
+
+
