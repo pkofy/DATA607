@@ -1,0 +1,393 @@
+---
+title: "DATA607ProjectTidyCreate"
+author: "PK O'Flaherty"
+date: '2022-03-29'
+output:
+  html_document:
+    highlight: pygments
+    theme: spacelab
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!--
+In this assignment, you’ll practice collaborating around a code project with GitHub.  You could consider our collective work as building out a book of examples on how to use TidyVerse functions.
+
+GitHub repository:  https://github.com/acatlin/SPRING2022TIDYVERSE
+
+FiveThirtyEight.com datasets.  https://data.fivethirtyeight.com/
+
+Kaggle datasets.  https://www.kaggle.com/datasets
+
+Your task here is to Create an Example.  Using one or more TidyVerse packages, and any dataset from fivethirtyeight.com or Kaggle, create a programming sample “vignette” that demonstrates how to use one or more of the capabilities of the selected TidyVerse package with your selected dataset. (25 points)
+
+Later, you'll be asked to extend an existing vignette.  Using one of your classmate’s examples (as created above), you'll then extend his or her example with additional annotated code. (15 points)
+
+You should clone the provided repository.  Once you have code to submit, you should make a pull request on the shared repository.  You should also update the README.md file with your example.
+
+After you’ve created your vignette, please submit your GitHub handle name in the submission link provided below. This will let your instructor know that your work is ready to be peer-graded.
+
+You should complete your submission on the schedule stated in the course syllabus.
+-->
+
+* * *
+
+# Project Tidy Create
+
+<br>
+
+## Getting Started
+
+### Approach to Problem
+
+**We're going to demonstrate some of the capabilites of the ggplot2 package in R, to contribute to a group cookbook for functions within the Tidyverse.**
+
+**If you want an idea to extend this project you could add examples from the 28th Chapter of R for Data Science, Graphics for Communication, to the end and adapt them to the provided dataset.  That chapter is located here:**
+
+(https://r4ds.had.co.nz/graphics-for-communication.html)[https://r4ds.had.co.nz/graphics-for-communication.html]
+
+**Alternatively, there's a section below with geom_smooth() that's not working and I've saved some examples that could be adapted to the provided dataset.**
+
+**Or you could adapt examples from chapter 3 of R for Data Science starting with the histograms and on which are saved starting at line ~314, or examples on position layers starting at line ~382.**
+
+<br>
+
+* * *
+
+### Libraries
+
+**We are demonstrating capabilities from the ggplot2 package which is included in the tidyverse package.**
+
+```{r, message=FALSE}
+# Load Packages ------------------------------
+library(tidyverse)
+library(magrittr)
+```
+
+<br>
+
+* * *
+
+### Data
+
+The data we're using is from Github user DATOTA posted in 2022 with description:
+
+"This series gives the average wholesale prices of selected home-grown horticultural produce in England and Wales. These are averages of the most usual prices charged by wholesalers for selected home-grown fruit, vegetables and cut flowers at the wholesale markets in UK"
+
+(https://www.kaggle.com/datasets/datota/fruit-and-vegatable-prices-in-uk-2017-2022)[https://www.kaggle.com/datasets/datota/fruit-and-vegatable-prices-in-uk-2017-2022]
+
+```{r}
+# Load Data ------------------------------
+Freggies <- read.csv(file = 'https://raw.githubusercontent.com/pkofy/DATA607/main/ProjectTidy/fruitvegprices-2017_2022.csv')
+
+head(Freggies)
+```
+
+<br>
+
+* * *
+
+### Resources
+
+**I used the following resources in the preparation for this project.  I largely adapted examples from the chapter and used the cheatsheet for the introduction.**
+
+Hadley Wickham & Garrett Grolemund (2016) R for Data Science, Chapter 3: Data Visualization
+(https://r4ds.had.co.nz/data-visualisation.html)[https://r4ds.had.co.nz/data-visualisation.html]
+
+The Data visualization with ggplot2 cheatsheet downloadable here:  
+(https://www.rstudio.com/resources/cheatsheets/)[https://www.rstudio.com/resources/cheatsheets/]
+
+<br>
+
+* * *
+
+## ggplot2 Vignette
+
+### Introduction
+
+GGPlot2 derives it's name from the Grammar of Graphics.
+
+Like a sentence is comprised of a Subject, Verb and Object, a ggplot is comprised of:  
+ - a Data set
+ - a Coordinate System
+ - a Geometry or way to visually represent the data points within the system.
+
+Just like a sentence can additionally have adjectives, adjectives and connector words to capture greater complexity, a ggplot can specify:  
+ - Positioning  
+ - Faceting  
+ - Scales, &  
+ - additional layers of data representations  
+
+<br>
+
+### Examples
+
+```{r}
+glimpse(Freggies)
+```
+
+
+```{r}
+ggplot(Freggies, aes(category, price, color = price)) + 
+  geom_point()
+```
+
+**Instead of putting the aes or aesthetic mapping in the main ggplot so that it will apply to all layers, you can put it in an individual layer.**
+
+```{r}
+ggplot(data = Freggies) + 
+  geom_point(mapping = aes(x = category, y = price, color = price))
+```
+
+**I've represented the color as the y-variable, price, to make it more visually engaging instead of a flat color for the data points**
+
+
+```{r}
+# Flat Color, no shading for price
+ggplot(Freggies, aes(category, price)) + 
+  geom_point()
+```
+
+**Alternatively you can set the color to be a qualitative variable.**
+
+```{r}
+# Color as a qualitative variable
+ggplot(Freggies, aes(category, price, color = category)) + 
+  geom_point()
+```
+
+**Or you can set color to be a third variable.  We'll filter the data to only look at apples for the next examples.**
+
+```{r}
+# Filtering so all items are apples
+Apples <- filter(Freggies, item == "apples")
+```
+
+```{r}
+head(Apples)
+```
+
+```{r}
+# Color as a qualitative variable
+ggplot(Apples, aes(date, price, color = variety)) + 
+  geom_point()
+```
+
+**You can also change the size of the dots.  Though this would make more sense if it were the quantity of apples sold at that period of time.**
+
+```{r}
+# Size as a quantitative variable
+ggplot(Apples, aes(date, price, color = variety, size = price)) + 
+  geom_point()
+```
+
+**That's a lot of dates so we're going to change this to the prices of apples in 2021.  Nevermind, with one year the data isn't as interesting.**
+
+```{r}
+Apples2021 <- filter(Apples, date < '2021-12-31')
+Apples2021 <- filter(Apples2021, date > '2021-01-01')
+```
+
+**I'm not sure how to use alpha intelligently.  There was a warning "Using alpha for a discrete variable is not advised" so I switched from 'variety' to 'price' as the value for alpha.  Alpha controls the transparency of the representated data points.**
+
+```{r}
+# Adjust the transparency of the data points with alpha
+ggplot(Apples, aes(date, price, color = variety, alpha = price)) + 
+  geom_point()
+```
+
+**While alpha or transparency is better with quantitative variables but works with qualitative variables, 'shape' only works with qualitative or categorical variables.  Here we adjust the representated data points' shape.  Notice that only six categories are represented and the rest drop off.  This is a limit imposed so we don't make unreasonable visual processing demands of our end users.**
+
+```{r}
+# Adjust the shape of the represented data points with shape
+ggplot(Apples, aes(date, price, color = variety, shape = variety)) + 
+  geom_point()
+```
+
+**Here we go back to color and look at blue.  How come the color is now a legend called "colour" and it says blue but it's using coral?**
+
+```{r}
+# Adjust the shape of the represented data points with shape
+ggplot(Apples, aes(date, price, color = "blue")) + 
+  geom_point()
+```
+
+**Here we get into facets.  Like facets of a gemstone, facets create different views of your data set.  In this case a separate window or facet for each category of apple.**
+
+```{r}
+# Demonstrate facets
+ggplot(Apples, aes(date, price, color = variety)) + 
+  geom_point() + 
+  facet_wrap(~ variety, nrow = 2)
+```
+
+**By setting the number of rows to 2 the data looks too compressed so we change the number of rows to 4 to achieve a better visual take for our audience.**
+
+```{r}
+# Demonstrate number of rows for facets
+ggplot(Apples, aes(date, price, color = variety)) + 
+  geom_point() + 
+  facet_wrap(~ variety, nrow = 4)
+```
+
+**Facet_wrap took one set of categorical variables, but facet grid lets you take two sets of categorical variables.  All of our apples are sold in kilograms so the grid will only have one column but you could make a new column with the four seasons to show a grid of the four seasons.**
+
+**One interesting takeaway from this graph is that the price of bramleys_seedlings spikes twice in the five year period, both when there are few other apple varieties on the market.**
+
+```{r}
+# Demonstrate facet grid
+ggplot(Apples, aes(date, price, color = variety)) + 
+  geom_point() + 
+  facet_grid(variety ~ unit)
+```
+
+**We've seen about geom_point() but let's look at geom_smooth().**
+
+```{r}
+# Demonstrate geom_smooth()
+ggplot(Apples2021, aes(date, price, color = variety)) + 
+  geom_smooth()
+```
+
+**OK PK, that broke but maybe I can fix it by limiting to one category of apple.**
+
+```{r}
+Bramleys <- filter(Apples, variety == "bramleys_seedling")
+```
+
+```{r}
+# Demonstrate geom_smooth() with one variety
+ggplot(Bramleys, aes(date, price)) + 
+  geom_smooth()
+```
+
+**That didn't work either so we'll try it with a different setup.**
+
+```{r}
+# Demonstrate geom_smooth() with one variety, new setup
+ggplot(data = Bramleys) + 
+  geom_smooth(mapping = aes(x = date, y = price))
+```
+
+**That didn't work either but for reference, this is what we were going for:**
+
+```{r}
+ggplot(data = mpg) + 
+  geom_smooth(mapping = aes(x = displ, y = hwy))
+```
+
+**Similarly, I'd like to be able to adapt these additional examples to the data:**
+
+```{r, eval=FALSE}
+ggplot(data = mpg) + 
+  geom_smooth(mapping = aes(x = displ, y = hwy, linetype = drv))
+       
+ggplot(data = mpg) +
+  geom_smooth(mapping = aes(x = displ, y = hwy, group = drv))
+    
+ggplot(data = mpg) +
+  geom_smooth(
+    mapping = aes(x = displ, y = hwy, color = drv),
+    show.legend = FALSE
+  )
+
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  geom_smooth(mapping = aes(x = displ, y = hwy))
+
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point() + 
+  geom_smooth()
+
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point(mapping = aes(color = class)) + 
+  geom_smooth()
+
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point(mapping = aes(color = class)) + 
+  geom_smooth(data = filter(mpg, class == "subcompact"), se = FALSE)
+```
+
+**Chapter 3 Histogram examples on.**
+
+```{r, eval=FALSE}
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut))
+
+ggplot(data = diamonds) + 
+  stat_count(mapping = aes(x = cut))
+```
+
+```{r, eval=FALSE}
+demo <- tribble(
+  ~cut,         ~freq,
+  "Fair",       1610,
+  "Good",       4906,
+  "Very Good",  12082,
+  "Premium",    13791,
+  "Ideal",      21551
+)
+
+ggplot(data = demo) +
+  geom_bar(mapping = aes(x = cut, y = freq), stat = "identity")
+```
+
+```{r, eval = FALSE}
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, y = stat(prop), group = 1))
+
+ggplot(data = diamonds) + 
+  stat_summary(
+    mapping = aes(x = cut, y = depth),
+    fun.min = min,
+    fun.max = max,
+    fun = median
+  )
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, y = after_stat(prop)))
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = color, y = after_stat(prop)))
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, color = cut))
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = cut))
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = clarity))
+
+ggplot(data = diamonds, mapping = aes(x = cut, fill = clarity)) + 
+  geom_bar(alpha = 1/5, position = "identity")
+ggplot(data = diamonds, mapping = aes(x = cut, color = clarity)) + 
+  geom_bar(fill = NA, position = "identity")
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = clarity), position = "fill")
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = clarity), position = "dodge")
+
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy), position = "jitter")
+
+ggplot(data = mpg) + 
+  geom_jitter(mapping = aes(x = displ, y = hwy))
+
+```
+
+**Maybe we can add some examples for how to handle position.  The Question marks are reminders that they can be entered into the console for more detail.**  
+ - ?position_dodge
+ - ?position_fill  
+ - ?position_identity  
+ _ ?position_jitter
+ - ?position_stack
+
+
+
+
+
+
