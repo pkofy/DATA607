@@ -1,0 +1,142 @@
+---
+title: "DATA607WK10Assignment"
+author: "PK O'Flaherty"
+date: '2022-04-16'
+output:
+  html_document:
+    highlight: pygments
+    theme: spacelab
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!--
+Rubric notes:
+1) Each text block should minimally include one header and additional non-header text
+2) Can you add any ggplot2 or visuals?
+3) Please deliver links to your R Markdown file (in GitHub and rpubs.com)
+
+
+
+Your task is to analyze an existing recommender system that you find interesting.  You should:
+
+Perform a Scenario Design analysis as described below.  Consider whether it makes sense for your selected recommender system to perform scenario design twice, once for the organization (e.g. Amazon.com) and once for the organization's customers.
+Attempt to reverse engineer what you can about the site, from the site interface and any available information that you can find on the Internet or elsewhere.
+Include specific recommendations about how to improve the site's recommendation capabilities going forward. 
+Create your report using an R Markdown file, and create a discussion thread with a link to the GitHub repo where your Markdown file notebook resides.  You are not expected to need to write code for this discussion assignment.
+Here are two examples of the kinds of papers that might be helpful backgrounders for your research in #2 above (if you had chosen amazon.com or nytimes.com as your web site):
+
+Greg Linden, Brent Smith, and Jeremy York (2003): Amazon.com Recommendations:  Item-to-Item Collaborative Filtering,  IEEE Internet Computing. 
+Alex Spangher (2015): Building the Next New York Times Recommendation Engine
+
+How to Perform a Scenario Analysis (review)
+
+Scenario Design is an easy-to-use “three question framework” that helps you in making sure that the information in your analysis work takes UX (user experience) into account:
+
+Source: “Scenario Design:  A Disciplined Approach to Customer Experience,” Bruce D. Temkin, Forrester Research, 2004.  Temkin notes that before applying Scenario Design, one might ask, “What functionality should we offer?”  After applying Scenario Design, one might instead ask, “What user goals should we serve?”
+
+Your task is to:
+
+Identify a recommender system web site, then
+Answer the three scenario design questions for this web site.  
+This process of guessing/reverse engineering, while inexact, will help you build out your own ability to better account for “user needs” in designing recommender systems going forward.  Being able to place the customer first in your mind is a “soft skill” that is highly valued in the technical marketplace.
+
+You may work in a small group on this discussion assignment!  Please make your initial post (which includes a link to your GitHub hosted R Markdown file before our meetup on Wednesday, and provide feedback to at least one of your class mates’ posts before end of day on Sunday.  Your feedback should include at least one additional reference and/or constructive suggestion.
+
+-->
+
+# Recommender System Analysis
+
+**We're going to analyse the ["WebMD Symptom Checker with Body Map"](https://symptoms.webmd.com/) as a recommender system.**
+
+WebMD's Symptom Checker system allows you, the user, to verbally describe your symptoms to select tags of symptoms.  You can also click on parts of the body to get a list of suggested symptoms that affect that part of the body to select from additional symptoms.  As you compile symptoms it offers potential diagnoses with a likeihood or relevance meter for you to take into consideration.  Any of the diagnoses can be selected to see additional articles about the condition.
+
+<br>
+
+* * *
+
+## Scenario Design Analysis
+
+<br>
+
+### Scenario Design 101
+
+Here is a blog article that roughly describes Scenario Design from Forrester (2004):  [forrester.com/forrester-introduces-a-disciplined-approach-to-customer-experience](https://www.forrester.com/press-newsroom/forrester-introduces-a-disciplined-approach-to-customer-experience/)
+
+I would describe it as going from a product/company-centric viewpoint to a user-centric view point.  By viewing your product from the lens of a user you are able to better design the product to fit the user's needs.  Scenario Design identifies facets of the user experience, or clusters similar user experiences so that can be individually improved.
+
+The three main questions asked in Scenario Design Analysis are:  
+ - Who are your target users?  
+ - What are their key goals?  
+ - How can you help them achieve their goals?  
+
+This means to me  
+1) describe multiple people that represent the different kinds of customers who will experience your product  
+2) identify what they want to accomplish  
+3) come up with design options that can help them satisfy their goals  
+
+<br>
+
+### Scenario Design Applied
+
+**The Users**
+
+User 1 (1) Hank's foot hurts, and (2) he wants to know the range of possible issues that he could be dealing with. (3) By clicking on the foot of the 'Body Map' Hank is given a list of tagged symptoms to help him articulate, in a way that's meaningful to our search engine and metrics, what's wrong.
+
+User 2 (1) Iris has funny rashes, sore joints and is feeling very overwhelmed. (2) She wants to know the range of possible issues that she could be dealing with. (3) By offering her a field to describe her symptoms, we're able to offer her a series of tagged symptoms that she can choose from to create a picture of her health that's meaningful to our search engine.
+
+<br>
+
+* * *
+
+## Internal Users
+
+We should always consider scenario design for internal users as well.
+
+User 3 (1) Janic attributes metadata and formatting to articles once they are ready to upload.  (2) He needs to make sure that any new articles interface with the Symptom Checker.  (3) We design a process so that authors submit the symptom tags and body map tags and have those checked for reasonableness during the article upload setup.
+
+<br>
+
+* * *
+
+## Anticipate Unmet Needs
+
+User 4 (1) Kaya is curious about medicine and (2) wants to learn more about specifically gastrointestinal issues.  (3) Our user design doesn't address this at the stage of Kaya first interacting with the Symptom Checker, however once she finds one article about gastrointestinal issues, she will be recommended related articles after at the end of her first article.  We could consider creating a medical library interface for people to learn and reference academically.
+
+User 5 (1) Lars is going on a multi-country trip to South America and (2a) wants to improve his medical literacy before potentially getting sick in a foreign country and (2b) once he is in country he may need to look up issues. (3a) We don't have a strong user experience for Lars.  We should consider creating multiple field medical guides which can be hiking or country-specific.  Each could be an organized aggregation of our standalone articles.  (3b) Once he's in country he may not get suggestions appropriate to where he is at.  Maybe we can consider using IP address or requesting location information as part of the Symptom Checker, to improve the types of articles we suggest.  Additionally if we extract the user interaction into a realtime database of symptoms by location we could partner with the CDC to track health trends.
+
+<br>
+
+* * *
+
+## Reverse Engineer
+
+We've imagined the abstract, underlying structure of the Symptom Checker and suggestions for new features in the descriptions above however we haven't described the match-meter.
+
+With each suggested condition which matches the supplied symptoms there is a four-bar meter indicating the strength of the match from low to fair to good to high.
+
+Another internal user profile, User 6, could be (1) Maya, who is in charge of the model, who (2) wants to check that the match algorithm is providing meaningful suggestions.  (3) Maya could use metrics like length of time spent reading the suggested article or if they left the site or continued to read articles about other conditions.
+
+I read the article WebMD submitted to PR Newswire in 2018, [prnewswire.com/webmd-launches-redesigned-state-of-the-art-symptom-checker](https://www.prnewswire.com/news-releases/webmd-launches-redesigned-state-of-the-art-symptom-checker-300624752.html).  The symptom checker was redesigned to take into consideration feedback from a 2015 British Medical Journal article that pointed out the flaws in online symptom checkers at the time.  It also added the ability to type in general symptoms which then suggests a list of tagged symptoms to choose from because users had difficulty picking a part of the body map for generalized symptoms like fever.
+
+But the main innovation continues to be the mapping of symptoms and diagnoses to tags.  From the article above, "WebMD has made this possible by mapping clinical symptomology and diagnoses into easy-to-understand language that will be accessible to millions of users."
+
+<br>
+
+* * *
+
+## Conclusions
+
+WebMD has the opportunity for additional products related to their Symptom Checker:
+
+They can create a medical libary interface for people to learn and reference academically.  This could be expanded by offering WebMD certificates in learning specific to general topics.  A prime first product motivator might be expectant parents who want to prep for being a medical advocate for the pregnant mother and baby to be.
+
+They can create field medical guides for activities (hiking, ultra marathons, ice climbing) or for specific countries and regions.  Travel medicine information could include recommended medical steps before travel such as a Typhoid booster and considerations in country such as insect management, altitude management, and recognizing the disease risk factor profile unique to that country or region.
+ 
+They can build out a database based on location, symptoms described and when, to create epidemiological models.  Not only would location improve the suggested articles, it would expand WebMD's revelance to global populations and increase the user base.  Also an epidemiological model based on symptoms could contribute to academic papers or increase the ability for the CDC to leverage relationships with tech firms to accomplish their mission.
+
+To facilitate collection of location information WebMD can add location to the Symptom Checker questions, or automatically pull IP Address information and ask if the location is correct or if the person had recently travelled else where.
+
