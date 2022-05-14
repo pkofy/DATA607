@@ -1,0 +1,520 @@
+---
+title: "DATA607 Final Project"
+author: "Tora Mullings, Alex Moyse, PK O'Flaherty"
+date: '2022-05-18'
+output:
+  html_document:
+    highlight: pygments
+    theme: spacelab
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!--
+submit links to our:
+ * final project presentation (10 minutes)
+ * github with code
+ * published rmarkdown
+
+1 "ok to limit scope and make the necessary simplifying assumptions"
+2 "If you're working on a project of a certain complexity, you do not need to tick off all of the items on the attached checklist."
+
+ Project includes at least one feature that we did not cover in class! There are many examples: “I used ggmap; I created a decision tree; I ranked the results; I created my presentation slides directly from R; I figured out to use OAuth 2.0…”
+
+ Presentation. Did you show (at least) one challenge you encountered in code and/or data, and what you did when you encountered that challenge? If you didn’t encounter any challenges, your assignment was clearly too easy for you!
+
+ Presentation. Did the audience come away with a clear understanding of your motivation for undertaking the project?
+
+ Presentation. Did the audience come away with a clear understanding of at least one insight you gained or conclusion you reached or hypothesis you “confirmed” (rejected or failed to reject…)?
+
+* * * * * * * * * * * * * *
+Andy's feedback to the proposal
+
+I'll look forward to seeing what you do here.  Certainly trying to spread rumors to influence market caps pre-dates the Internet.  Usually it was only done with "penny stocks."  Also, does change in valuation run counter to general changes in market indexes, are their lags, does instrument price bounce back after time, etc.  Lots you could do here.
+
+* * * * * * * * * * * * * *
+-->
+
+<br>
+
+* * *
+
+<img src="https://image-cdn.hypb.st/https%3A%2F%2Fhypebeast.com%2Fimage%2F2021%2F01%2Fwallstreetbets-discord-banned-subreddit-goes-offline-info-1.jpg?q=80&w=1000&cbr=1&fit=max" alt="Numbers and symbols related to a trading market in orange, green, white and red" style="max-height: 600px; max-width: 600px;">
+
+#### Cris Faga/Nurphoto/Getty Images, [hypebeast.com/wallstreetbets-discord-banned-subreddit-goes-offline](https://hypebeast.com/2021/1/wallstreetbets-discord-banned-subreddit-goes-offline-info)
+
+<br>
+
+* * *
+
+# Part 1 - Introduction
+
+### Abstract
+
+We've built a rudimentary hype index based on the conversations posted in the "r/WallStreetBets" subreddit (WSB).  To do so we've scrapped conversations from WSB, analyzed for sentiment and calculated a metric for hype.
+
+WSB became famous with the unprecedented stock surge for GameStop caused by viral trading.  This phenomenon went on to benefit companies that benefited from the hype generated in their stock by WSB, included Hertz and AMC.
+
+We are not addressing if there is any predictive value in applying sentiment analysis, but rather demonstrating a rudimentary measurement of hype surrounding a stock.
+
+<br>
+
+#### Motivation for doing this work
+
+Completing similar social listening across multiple social media platforms could identify future viral trading phenomenons, or become a valuation component for stock analysts using hype to measure positive regard for a stock among retail investors.
+
+<br>
+
+#### Question we're seeking to answer
+
+Can we demonstrate a rudimentary measurement of hype surrounding a stock?  What did we succeed in and what could be improved?  How can we extend this measurement for future projects?
+
+<br>
+
+#### Where we're sourcing our data
+
+We're using two primary data sources:  
+
+ - text  
+    + Conversational data scraped from WSB for sentiment analysis  
+    + [reddit.com/r/wallstreetbets](https://www.reddit.com/r/wallstreetbets/)  
+    
+ - numeric  
+    + Historical stock prices from NASDAQ for comparison to changes in sentiment  
+    + [nasdaq.com/market-activity/quotes](https://www.nasdaq.com/market-activity/quotes/historical)  
+
+<br>
+
+#### Overall project flow
+
+Our project write up is organized by OSEMN (pronounced "awesome"), the acronym for **Obtain**, **Scrub**, **Explore**, **Model**, and **iNterpret**.
+
+<br>
+
+#### Roles and Responsibilities
+
+Every member of the team attempted all parts of the project.  We combined our efforts to complete the project.
+
+<br>
+
+* * * 
+
+# Part 2 - Data Collection
+
+**Obtain** Scrub Explore Model iNterpret
+
+As an overview, we are collecting data from posts made to WSB.  As well, we are taking information from the `TTR` package to generate a master list of ticker symbols to search for in the posts.
+
+<br>
+
+## Libraries
+
+We are coding in the TidyVerse.  Additionally we need:  
+ - `RedditExtractoR` for scraping reddit posts  
+ - `ttr` for quant trading info & ticker lists  
+ - `sentimentr` for evaluating posts for sentiment  
+
+```{r, message=FALSE}
+# Load packages --------------------------------------
+library(RedditExtractoR)
+library(TTR)
+library(curl)
+library(tidyverse)
+library(quanteda)
+library(readr)
+library(dplyr)
+library(tm)
+library(SnowballC)
+library(sentimentr)
+```
+
+<br>
+
+## Load Data
+
+### WSB Posts
+
+Here we pull the last hour of posts made to WSB.
+
+```{r}
+posts <- find_thread_urls(subreddit="wallstreetbets", sort_by="new", period="hour")
+```
+
+<br>
+
+### Ticker Symbols
+
+Here we create a master list of all ticker symbols to look for.
+
+```{r}
+# Create and display master list of ticker symbols
+master <- TTR::stockSymbols(exchange = c("AMEX", "NASDAQ", "NYSE", "ARCA", "BATS", "IEX"))[,c('Name', 'Symbol')]
+master
+```
+
+<br>
+
+### Can we think of
+a summary statistics and graphic to include either here or after the data transformation that would satisfy the following rubric item?
+
+*** Project includes at least one statistical analysis and at least one graphics that describes or validates your data.***
+
+<br>
+
+## RedditExtractoR Example
+
+As an example of how else you can use the `RedditExtractoR` package, here's code that allows you to extract all posts with the ticker symbol for Apple Stock, AAPL.
+
+```{r}
+# RedditExtractoR example using AAPL         
+z <- find_thread_urls(
+  keywords = "AAPL",
+  sort_by = "new",
+  subreddit = "wallstreetbets",
+  period = "month"
+)
+```
+
+```{r}
+# Pull the underlying comments to the posts
+y <- get_thread_content(urls=z$url)
+```
+
+<br>
+
+## Pull Stock Prices
+
+Here we demonstrate how we could pull stock prices.  If we were to compare stock prices to the results of our sentiment analysis we could embed the function below to pull stock prices for the corresponding time period.
+
+Code Summary:  
+ - Load additional required packages  
+ - Create a function for the number of pages  
+ - Create documentation for the main function's time input  
+ - Define the function to pull historical stock prices for a given ticker  
+ - Example call to the function  
+
+```{r}
+# Additional packages required
+library(RSelenium)
+library(rvest)
+library(netstat)
+library(XML)
+library(hash)
+```
+
+```{r}
+# Fetches the number of pages for the selected time period i.e 1M, 5Y, MAX, etc
+get_num_pages <- function(html_page) {
+  buttons <- html_page %>% 
+             html_elements(xpath='//button[@class="pagination__page"]')
+  last_button <- tail(buttons, n=1L)
+  num_pages <- last_button %>% 
+              html_attr("data-page") %>% 
+              as.numeric()
+  return(num_pages)
+}
+```
+
+```{r}
+# Document time input for the function
+times <- hash()
+times[["1M"]] <- "Click to show data for 1 month"
+times[["6M"]] <- "Click to show data for 6 months"
+times[["YTD"]] <- "Click to show data for year to date"
+times[["1Y"]] <- "Click to show data for 1 year"
+times[["5Y"]] <- "Click to show data for 5 years"
+times[["MAX"]] <- "Click to show maximum available data"
+```
+
+```{r}
+# create a data frame of the stock prices for the selected time period. later, add ticker column
+get_stock_prices <- function(ticker, time_period) {
+  url <- paste0("https://www.nasdaq.com/market-activity/stocks/",ticker,"/historical")
+  
+  # initialize client and go to NASDAQ historical site.
+  rs_driver_object <- rsDriver(
+    browser = "firefox",
+    port = netstat::free_port()
+  )
+  
+  remDr <- rs_driver_object$client
+  #remDr$open()
+  remDr$navigate(url)
+  
+  element <- paste0('//button[@aria-label="',times[[time_period]],'"]')
+  remDr$findElement(using='xpath', element)$clickElement()
+  
+  # get html page
+  html_page <- remDr$getPageSource()[[1]] %>% 
+               read_html()
+  
+  #get the number of pages to scrape
+  NUM_PAGES <- get_num_pages(html_page)
+  
+  stocks_prices <- data.frame()
+  
+  for (i in 1:NUM_PAGES) {
+    print(paste0("Scraping page ", i, " out of ", NUM_PAGES))
+    new_page_stocks <-remDr$getPageSource()[[1]] %>% 
+                        read_html() %>%
+                        html_table() %>% 
+                        flatten() %>% 
+                        data.frame()
+    print("A")
+    
+    stocks_prices <- stocks_prices %>% 
+                      rbind(new_page_stocks)
+    print("B")
+    #go to the next page to scrape more
+    remDr$findElement(using='xpath', '//button[@aria-label="click to go to the next page"]')$clickElement()  
+    print("C")
+    Sys.sleep(5)
+    print("D")
+  }
+  return(stocks_prices)
+}
+```
+
+```{r, eval=FALSE}
+# Demo of function set to eval=FALSE
+x <- get_stock_prices("aapl", "6M")
+```
+
+<br>
+
+* * *
+
+# Part 3 - Data Transformation
+
+Obtain **Scrub** Explore Model iNterpret
+
+Here we generate a corpus out of the posts for running through our analysis.  Then we add features by marking the ticker symbols and taking the date from the posts' time stamps.
+
+## Corpus Creation
+
+Code Summary:  
+ - Index the posts, taking the first 50 for proof of concept  
+ - Representing the posts as a corpus  
+
+```{r}
+# Index the posts, taking the first 50 for proof of concept
+posts_test <- head(posts, n=50L)
+posts_test$index <- 1:nrow(posts_test)
+posts_test
+```
+
+```{r}
+# Representing the posts as a corpus
+corp <- corpus(posts_test, docid_field = "index", text_field = "text")
+```
+
+<br>
+
+## Add Features
+
+Code Summary:  
+ - Mark the ticker symbols 
+ - Take the date from the posts' time stamps
+
+```{r}
+# Mark the ticker symbols 
+x <- kwic(tokens(corp, remove_punct = TRUE, remove_numbers = TRUE), 
+          pattern = master$Symbol,
+          window = 8, case_insensitive = FALSE,
+          )
+x$index = x$docname
+as.data.frame(x)
+```
+
+```{r}
+# Take the date from the posts' time stamps
+add_In_Date <- posts_test[c("index","timestamp")]
+rownames(add_In_Date) <- NULL
+add_In_Date
+```
+
+<br>
+
+* * *
+
+# Part 4 - Sentiment Analysis
+
+Obtain Scrub **Explore** Model iNterpret
+
+Here we use the sentimentr package to assess a sentiment score for the posts.
+
+```{r}
+target <- as.data.frame(x)
+target$sentence = paste(target$pre, target$post)
+target_augment <- merge(target,add_In_Date,by="index")
+target_sent <- get_sentences(target$sentence)
+out <- with(target_augment, sentiment_by( get_sentences(target_augment), c("timestamp","pattern")))
+plot(out)
+#target_sent <- sentiment_by(target_sent)
+#target$sentiment = target_sent$ave_sentiment
+target
+```
+
+<br>
+
+* * *
+
+# Part 5 - Interactive App
+
+Obtain Scrub Explore **Model** iNterpret
+
+## Shiny App Demo
+
+basic possible shiny app (drop down for ticker and display a number representing sentiment/hype)
+
+ALEXZ's Request:
+try to wrap Alex's code in a shiny app with the ability to filter and set time periods
+ - checkboxes
+ - multiselect
+ - sentiment over time scale
+ - price over time scale
+ - volume over time scale
+ - cursor on a point is overlaid with extra details
+
+```{r, eval=FALSE}
+library(shiny)
+
+ui <- fluidPage(
+  checkboxGroupInput("variable", "Variables to show:",
+                     c("Cylinders" = "cyl",
+                       "Transmission" = "am",
+                       "Gears" = "gear")),
+  tableOutput("data")
+)
+
+server <- function(input, output, session) {
+  output$data <- renderTable({
+    mtcars[, c("mpg", input$variable), drop = FALSE]
+  }, rownames = TRUE)
+}
+
+shinyApp(ui, server)
+```
+
+<br>
+
+* * *
+
+# Part 6 - Conclusion
+
+Obtain Scrub Explore Model **iNterpret**
+
+Ultimately we were able to generate a rudimentary measure of hype by applying sentiment analysis to the WSB posts.
+
+Avenues for future improvement could be to refine the measure of hype into a score for any given day based on all of the activity for that day.  This would lend itself to a time series analysis by price, or price offset by total market performance or market sector performance.
+
+One way to extend this measurement to future projects would be to assess how well the sentiment analysis labeled the posts.  For instance a manual labeling of posts along with a document term matrix could identify additional phrases, like 'to the moon', or 'stonk', not recognized by standard sentiment packages.
+
+ Project includes at least one graphic that supports your conclusion(s).
+
+ Project includes at least one statistical analysis that supports your conclusion(s).
+
+## Challenges
+
+One challenge we had with the code was that by working on different platforms (Windows/Mac; Firefox/Chrome) it meant our code was not always interchangeable.  One way we could have addressed that would have been to do each of our initial coding in dockers.
+
+## References
+
+***Additional shiny code from a DATA606 lecture for comparison***
+```{r shiny, echo=FALSE, eval=FALSE, results = TRUE}
+# This R chunk will only run in interactive mode.
+shinyApp(
+  ui <- fluidPage(
+    
+    # Sidebar with a slider input for number of bins 
+    sidebarLayout(
+      sidebarPanel(
+        
+        selectInput("outcome",
+                    "Outcome of interest:",
+                    choices = c("Benefits", "Doesn't benefit"),
+                    selected = "Doesn't benefit"),
+        
+        numericInput("n_samp",
+                     "Sample size:",
+                     min = 1,
+                     max = nrow(global_monitor),
+                     value = 30),
+        
+        numericInput("n_rep",
+                     "Number of samples:",
+                     min = 1,
+                     max = 30000,
+                     value = 15000),
+        
+        hr(),
+        
+        sliderInput("binwidth",
+                    "Binwidth:",
+                    min = 0, max = 0.5,
+                    value = 0.02,
+                    step = 0.005)
+        
+      ),
+      
+      # Show a plot of the generated distribution
+      mainPanel(
+        plotOutput("sampling_plot"),
+        textOutput("sampling_mean"),
+        textOutput("sampling_se")
+      )
+    )
+  ),
+  
+  server <- function(input, output) {
+    
+    # create sampling distribution
+    sampling_dist <- reactive({
+      global_monitor %>%
+        rep_sample_n(size = input$n_samp, reps = input$n_rep, replace = TRUE) %>%
+        count(scientist_work) %>%
+        mutate(p_hat = n /sum(n)) %>%
+        filter(scientist_work == input$outcome)
+    })
+    
+    # plot sampling distribution
+    output$sampling_plot <- renderPlot({
+      
+      ggplot(sampling_dist(), aes(x = p_hat)) +
+        geom_histogram(binwidth = input$binwidth) +
+        xlim(0, 1) +
+        labs(
+          x = paste0("p_hat (", input$outcome, ")"),
+          title = "Sampling distribution of p_hat",
+          subtitle = paste0("Sample size = ", input$n_samp, " Number of samples = ", input$n_rep)
+        ) +
+        theme(plot.title = element_text(face = "bold", size = 16))
+    })
+    
+    ggplot(data = sample_props50, aes(x = p_hat)) +
+      geom_histogram(binwidth = 0.02) +
+      labs(
+        x = "p_hat (Doesn't benefit)",
+        title = "Sampling distribution of p_hat",
+        subtitle = "Sample size = 50, Number of samples = 15000"
+      )
+    
+    # mean of sampling distribution
+    output$sampling_mean <- renderText({
+      paste0("Mean of sampling distribution = ", round(mean(sampling_dist()$p_hat), 2))
+    })
+    
+    # mean of sampling distribution
+    output$sampling_se <- renderText({
+      paste0("SE of sampling distribution = ", round(sd(sampling_dist()$p_hat), 2))
+    })
+  },
+  
+  options = list(height = 900) 
+)
+```
+
+
